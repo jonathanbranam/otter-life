@@ -371,79 +371,65 @@
             }
 
             createOtterTextures() {
-                // Create different colored otter textures with hideous designs
+                // Create different colored otter textures with cuter designs
                 const otterColors = [
-                    { name: 'otter-brown', color: 0x4A3219, wart: 0x2F1F0A },      // Murky brown
-                    { name: 'otter-dark', color: 0x3D2817, wart: 0x1A0F06 },       // Sickly dark brown
-                    { name: 'otter-light', color: 0x6B5C4D, wart: 0x4A3F34 },      // Diseased light brown
-                    { name: 'otter-gray', color: 0x5C5C5C, wart: 0x3A3A3A },       // Grimy gray
-                    { name: 'otter-tan', color: 0x9C8B6F, wart: 0x6F6049 }         // Splotchy tan
+                    { name: 'otter-brown', color: 0x8B4513, belly: 0xD2B48C },      // Brown with tan belly
+                    { name: 'otter-dark', color: 0x654321, belly: 0x8B7355 },       // Dark brown with lighter belly
+                    { name: 'otter-light', color: 0xA0826D, belly: 0xE5C9A3 },      // Light brown with cream belly
+                    { name: 'otter-gray', color: 0x808080, belly: 0xC0C0C0 },       // Gray with silver belly
+                    { name: 'otter-tan', color: 0xD2B48C, belly: 0xF5DEB3 }         // Tan with wheat belly
                 ];
 
-                otterColors.forEach(({ name, color, wart }) => {
+                otterColors.forEach(({ name, color, belly }) => {
                     const graphics = this.make.graphics({ x: 0, y: 0, add: false });
                     
-                    // Lumpy, misshapen body
+                    // Rounder, cuter body
                     graphics.fillStyle(color, 1);
-                    graphics.fillCircle(50, 58, 19);
-                    graphics.fillCircle(45, 55, 12); // Lump
-                    graphics.fillCircle(58, 62, 8);  // Another lump
+                    graphics.fillCircle(50, 55, 18); // Bigger, rounder body
                     
-                    // Grotesque patches
-                    graphics.fillStyle(wart, 1);
-                    graphics.fillCircle(42, 60, 5);
-                    graphics.fillCircle(56, 54, 4);
-                    graphics.fillCircle(48, 68, 3);
+                    // Cute belly patch
+                    graphics.fillStyle(belly, 1);
+                    graphics.fillEllipse(50, 58, 12, 16); // Oval belly
                     
-                    // Twisted, asymmetric arms
+                    // Arms/paws
                     graphics.fillStyle(color, 1);
-                    graphics.fillCircle(35, 62, 7); // Left arm too long
-                    graphics.fillCircle(61, 56, 4); // Right arm too short
+                    graphics.fillCircle(38, 58, 6); // Left paw
+                    graphics.fillCircle(62, 58, 6); // Right paw
                     
-                    // Disgusting, scraggly tail
-                    graphics.fillCircle(52, 75, 6);
-                    graphics.fillCircle(54, 80, 4);
-                    graphics.fillCircle(50, 82, 2);
+                    // Tail - fluffier
+                    graphics.fillCircle(50, 72, 10);
+                    graphics.fillCircle(52, 78, 8);
                     
-                    // Deformed head - too big and lopsided
-                    graphics.fillCircle(48, 33, 16);
-                    graphics.fillCircle(54, 30, 10); // Bulge on one side
+                    // Head - bigger and rounder for cuteness
+                    graphics.fillCircle(50, 35, 14);
                     
-                    // Mangy, uneven ears
-                    graphics.fillCircle(40, 20, 6); // One ear bigger
-                    graphics.fillCircle(58, 22, 3); // One ear smaller
+                    // Cute ears - rounder
+                    graphics.fillCircle(42, 24, 5);
+                    graphics.fillCircle(58, 24, 5);
                     
-                    // Hideous mismatched eyes - different sizes and heights
+                    // Belly on head (muzzle area)
+                    graphics.fillStyle(belly, 1);
+                    graphics.fillCircle(50, 40, 8);
+                    
+                    // BIG cute eyes with shine
                     graphics.fillStyle(0x000000, 1);
-                    graphics.fillCircle(42, 30, 5);  // Left eye huge and bulging
-                    graphics.fillCircle(56, 34, 2);  // Right eye tiny and lower
+                    graphics.fillCircle(44, 32, 4); // Left eye - bigger
+                    graphics.fillCircle(56, 32, 4); // Right eye - bigger
                     
-                    // Bloodshot/crazed look
-                    graphics.lineStyle(1, 0x8B0000, 0.8);
-                    graphics.strokeCircle(42, 30, 6);
-                    
-                    // Creepy uneven pupils
+                    // Eye shine for extra cuteness
                     graphics.fillStyle(0xFFFFFF, 1);
-                    graphics.fillCircle(40, 29, 1.5);
-                    graphics.fillCircle(56.5, 34, 0.8);
+                    graphics.fillCircle(45, 31, 1.5); // Left eye shine
+                    graphics.fillCircle(57, 31, 1.5); // Right eye shine
                     
-                    // Crooked, misshapen nose/snout
-                    graphics.fillStyle(wart, 1);
-                    graphics.fillCircle(47, 40, 3);
-                    graphics.fillCircle(51, 41, 2);
+                    // Cute little nose
+                    graphics.fillStyle(0x000000, 1);
+                    graphics.fillCircle(50, 38, 2);
                     
-                    // Random warts and blemishes
-                    graphics.fillCircle(38, 36, 1.5);
-                    graphics.fillCircle(60, 28, 1);
-                    graphics.fillCircle(44, 24, 1.2);
-                    graphics.fillCircle(52, 44, 1.8);
-                    graphics.fillCircle(36, 50, 1.3);
-                    
-                    // Asymmetric mouth/grimace
-                    graphics.lineStyle(2, 0x000000, 1);
-                    graphics.beginPath();
-                    graphics.arc(48, 42, 4, 0.2, Math.PI - 0.5);
-                    graphics.strokePath();
+                    // Whisker dots
+                    graphics.fillCircle(40, 36, 0.8);
+                    graphics.fillCircle(60, 36, 0.8);
+                    graphics.fillCircle(38, 38, 0.8);
+                    graphics.fillCircle(62, 38, 0.8);
                     
                     graphics.generateTexture(name, 100, 100);
                     graphics.destroy();
