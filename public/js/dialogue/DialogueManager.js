@@ -55,12 +55,25 @@ class DialogueManager {
         canvas.height = 200;
         const ctx = canvas.getContext('2d');
 
-        // Get the otter's texture color from its key
+        // Get the otter's texture from the Phaser game
         const textureKey = npc.sprite.texture.key;
-        let otterColor = this.getOtterColor(textureKey);
+        const texture = scene.textures.get(textureKey);
+        const source = texture.getSourceImage();
 
-        // Draw larger otter portrait
-        this.drawOtterPortrait(ctx, otterColor);
+        // Draw the otter texture zoomed in on the face/head area
+        // The otter texture is 100x100, head is centered around (50, 35)
+        // Zoom in by 4x and center on the head
+        const zoom = 4;
+        const sourceX = 25;  // Start x in source (to center on head at x=50)
+        const sourceY = 10;  // Start y in source (to capture from ears to muzzle)
+        const sourceW = 50;  // Width of area to capture
+        const sourceH = 50;  // Height of area to capture
+
+        ctx.drawImage(
+            source,
+            sourceX, sourceY, sourceW, sourceH,  // Source rectangle
+            0, 0, 200, 200                        // Destination rectangle (full canvas)
+        );
 
         this.portraitDiv.appendChild(canvas);
 
@@ -69,54 +82,6 @@ class DialogueManager {
 
         // Show overlay
         this.overlay.classList.add('active');
-    }
-
-    getOtterColor(textureKey) {
-        if (textureKey.includes('dark')) return 0x654321;
-        if (textureKey.includes('light')) return 0xA0826D;
-        if (textureKey.includes('gray')) return 0x808080;
-        if (textureKey.includes('tan')) return 0xD2B48C;
-        return 0x8B4513; // default brown
-    }
-
-    drawOtterPortrait(ctx, otterColor) {
-        ctx.fillStyle = '#' + otterColor.toString(16).padStart(6, '0');
-
-        // Scale up for portrait (2x size)
-        const scale = 2;
-
-        // Otter body
-        ctx.beginPath();
-        ctx.arc(100, 100, 24 * scale, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Otter head
-        ctx.beginPath();
-        ctx.arc(100, 70, 18 * scale, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Eyes
-        ctx.fillStyle = '#000000';
-        ctx.beginPath();
-        ctx.arc(94, 64, 4 * scale, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.arc(106, 64, 4 * scale, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Ears
-        ctx.fillStyle = '#' + otterColor.toString(16).padStart(6, '0');
-        ctx.beginPath();
-        ctx.arc(90, 56, 6 * scale, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.arc(110, 56, 6 * scale, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Tail
-        ctx.beginPath();
-        ctx.arc(116, 104, 14 * scale, 0, Math.PI * 2);
-        ctx.fill();
     }
 
     closeDialogue() {
