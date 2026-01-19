@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Otter Adventure</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/phaser/3.55.2/phaser.min.js"></script>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div id="game-wrapper">
+        <div id="game-container"></div>
+        <div id="info">
+            <p>Keyboard: Arrow Keys/WASD | Gamepad: D-Pad/Stick | Move otter around!</p>
+        </div>
+        <div id="controls">
+            <div class="joystick-container">
+                <div class="joystick-knob"></div>
+            </div>
+        </div>
+        <div id="dialogue-overlay">
+            <div class="dialogue-container">
+                <div class="otter-portrait" id="otter-portrait">
+                    <!-- Otter image will be inserted here -->
+                </div>
+                <div class="dialogue-content">
+                    <div class="dialogue-text" id="dialogue-text">
+                        Hello there!
+                    </div>
+                    <button class="dialogue-button" id="dialogue-ok">OK</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Game Configuration and Constants -->
+    <script src="js/config.js"></script>
+
+    <!-- Game Modules -->
+    <script src="js/controls/VirtualControls.js"></script>
+    <script src="js/dialogue/DialogueManager.js"></script>
+    <script src="js/scenes/OtterScene.js"></script>
+
+    <!-- Main Entry Point -->
+    <script src="js/main.js"></script>
+</body>
+</html>
