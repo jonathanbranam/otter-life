@@ -140,68 +140,6 @@ export class World {
                 }
             }
         }
-
-        // Add small islands in the river
-        this.generateIslands(riverPath);
-    }
-
-    generateIslands(riverPath: { x: number; y: number; width: number }[]): void {
-        // Place 5-10 small islands along the river
-        const islandCount = 5 + Math.floor(Math.random() * 6);
-
-        for (let i = 0; i < islandCount; i++) {
-            // Pick a random point along the river
-            const pathIndex = Math.floor(Math.random() * riverPath.length);
-            const point = riverPath[pathIndex];
-
-            // Place island near the center of the river
-            const offsetX = Math.floor(Math.random() * 8) - 4;
-            const offsetY = Math.floor(Math.random() * 8) - 4;
-            const islandX = point.x + offsetX;
-            const islandY = point.y + offsetY;
-
-            // Island size: 2-4 tiles radius
-            const islandRadius = 2 + Math.floor(Math.random() * 3);
-
-            // Create the island
-            for (let dy = -islandRadius; dy <= islandRadius; dy++) {
-                for (let dx = -islandRadius; dx <= islandRadius; dx++) {
-                    const tx = islandX + dx;
-                    const ty = islandY + dy;
-
-                    if (this.isInBounds(tx, ty)) {
-                        const distance = Math.sqrt(dx * dx + dy * dy);
-                        const tile = this.tiles[ty][tx];
-
-                        // Only create islands in water tiles
-                        if (tile.type !== TileType.RIVER_SHALLOW &&
-                            tile.type !== TileType.RIVER_DEEP) {
-                            continue;
-                        }
-
-                        if (distance <= islandRadius * 0.5) {
-                            // Island center - grass or dirt
-                            tile.type = Math.random() < 0.7 ? TileType.GRASS : TileType.DIRT;
-                        } else if (distance <= islandRadius * 0.8) {
-                            // Island edge - mud or dirt
-                            tile.type = Math.random() < 0.5 ? TileType.MUD : TileType.DIRT;
-                        } else if (distance <= islandRadius) {
-                            // Island shore
-                            tile.type = TileType.SHORELINE;
-                        }
-
-                        // Add some trees to islands
-                        if ((tile.type === TileType.GRASS || tile.type === TileType.DIRT) &&
-                            Math.random() < 0.2) {
-                            tile.type = TileType.TREE;
-                            if (Math.random() < 0.5) {
-                                tile.setResource(ResourceType.TWIGS, Math.floor(Math.random() * 3) + 1);
-                            }
-                        }
-                    }
-                }
-            }
-        }
     }
 
     generateTrees(): void {

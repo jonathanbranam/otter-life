@@ -10,6 +10,7 @@ export class Game extends Scene
     msg_text : Phaser.GameObjects.Text;
     quit_text : Phaser.GameObjects.Text;
     quit_bg : Phaser.GameObjects.Rectangle;
+    debug_text : Phaser.GameObjects.Text | null = null;
     grid: Phaser.GameObjects.Graphics;
     player: Player | null = null;
     world: World | null = null;
@@ -29,6 +30,7 @@ export class Game extends Scene
         this.setupWorld();
         this.setupTitle();
         this.setupQuitButton();
+        this.setupDebug();
         this.setupPlayer();
         this.setupGrid();
         this.setupKeyboardControls();
@@ -111,6 +113,17 @@ export class Game extends Scene
         this.quit_bg.on('pointerdown', () => {
             this.scene.start('GameOver');
         });
+    }
+
+    setupDebug ()
+    {
+        this.debug_text = this.add.text(10, 10, '', {
+            fontFamily: 'Arial', fontSize: 14, color: '#ffffff',
+            stroke: '#000000', strokeThickness: 2,
+            align: 'left'
+        });
+        this.debug_text.setScrollFactor(0); // Fixed to camera
+        this.debug_text.setDepth(2000);
     }
 
     setupPlayer ()
@@ -272,8 +285,25 @@ export class Game extends Scene
             );
         }
 
+        // Update debug display
+        this.updateDebugDisplay();
+
         // Update grid overlay
         this.updateGrid();
+    }
+
+    updateDebugDisplay ()
+    {
+        if (!this.debug_text || !this.world) return;
+
+        const tile = this.world.getTile(this.playerTileX, this.playerTileY);
+        const tileType = tile ? tile.type : 'unknown';
+        const isSwimming = this.player?.isSwimming ? ' (swimming)' : '';
+
+        this.debug_text.setText([
+            `Tile: (${this.playerTileX}, ${this.playerTileY})`,
+            `Type: ${tileType}${isSwimming}`
+        ]);
     }
 
     updateGrid ()
