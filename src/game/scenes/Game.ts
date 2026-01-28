@@ -154,6 +154,12 @@ export class Game extends Scene
         // Occupy the tile in the world
         this.world.occupyTile(startTileX, startTileY, this.player);
 
+        // Set initial swimming state
+        const startTile = this.world.getTile(startTileX, startTileY);
+        if (startTile) {
+            this.player.isSwimming = startTile.isWaterTile();
+        }
+
         // Set up camera to follow player's belly
         if (this.player.belly) {
             // Calculate deadzone: 8 tiles from each edge
@@ -228,7 +234,7 @@ export class Game extends Scene
         const newTileY = this.playerTileY + tileDy;
 
         // Check if the new tile is walkable
-        if (!this.world.canMoveTo(newTileX, newTileY, false)) {
+        if (!this.world.canMoveTo(newTileX, newTileY, this.player.isSwimming)) {
             return; // Can't move there
         }
 
@@ -246,6 +252,12 @@ export class Game extends Scene
 
         // Occupy new tile
         this.world.occupyTile(newTileX, newTileY, this.player);
+
+        // Update swimming state based on tile type
+        const newTile = this.world.getTile(newTileX, newTileY);
+        if (newTile) {
+            this.player.isSwimming = newTile.isWaterTile();
+        }
     }
 
     update ()

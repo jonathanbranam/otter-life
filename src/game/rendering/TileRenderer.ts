@@ -4,16 +4,17 @@ import { TileType } from '../world/TileType';
 import { TILE_SIZE } from '../constants';
 
 export const TILE_COLORS: Record<TileType, number> = {
-    [TileType.DIRT]: 0x8B7355,      // Brown dirt
-    [TileType.GRASS]: 0x4A7C2C,     // Green grass
-    [TileType.MUD]: 0x6B5D4F,       // Dark muddy brown
-    [TileType.SHORELINE]: 0xC2B280, // Sandy beige
-    [TileType.RIVER]: 0x4A90E2,     // Blue water
-    [TileType.OCEAN]: 0x1E5A8E,     // Deep blue
-    [TileType.BOULDER]: 0x808080,   // Gray
-    [TileType.CLIFF]: 0x696969,     // Dark gray
-    [TileType.TREE]: 0x2D5016,      // Dark green
-    [TileType.ROCK]: 0x9E9E9E       // Light gray
+    [TileType.DIRT]: 0x8B7355,          // Brown dirt
+    [TileType.GRASS]: 0x4A7C2C,         // Green grass
+    [TileType.MUD]: 0x6B5D4F,           // Dark muddy brown
+    [TileType.SHORELINE]: 0xC2B280,     // Sandy beige
+    [TileType.RIVER_SHALLOW]: 0x6BAED6, // Light blue water
+    [TileType.RIVER_DEEP]: 0x2E75B6,    // Medium blue water
+    [TileType.OCEAN]: 0x1E5A8E,         // Deep blue
+    [TileType.BOULDER]: 0x808080,       // Gray
+    [TileType.CLIFF]: 0x696969,         // Dark gray
+    [TileType.TREE]: 0x2D5016,          // Dark green
+    [TileType.ROCK]: 0x9E9E9E           // Light gray
 };
 
 export class TileRenderer {

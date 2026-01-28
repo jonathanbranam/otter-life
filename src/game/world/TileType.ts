@@ -9,8 +9,9 @@ export enum TileType {
     MUD = 'mud',
     SHORELINE = 'shoreline',
 
-    // Water tiles (swimmable)
-    RIVER = 'river',
+    // Water tiles (swimmable/walkable for otters)
+    RIVER_SHALLOW = 'river_shallow',
+    RIVER_DEEP = 'river_deep',
     OCEAN = 'ocean',
 
     // Blocking terrain
@@ -32,8 +33,9 @@ export const TILE_PROPERTIES: Record<TileType, TileProperties> = {
     [TileType.GRASS]: { walkable: true, swimmable: false, interactable: false, blocksMovement: false },
     [TileType.MUD]: { walkable: true, swimmable: false, interactable: true, blocksMovement: false },
     [TileType.SHORELINE]: { walkable: true, swimmable: false, interactable: false, blocksMovement: false },
-    [TileType.RIVER]: { walkable: false, swimmable: true, interactable: false, blocksMovement: false },
-    [TileType.OCEAN]: { walkable: false, swimmable: true, interactable: false, blocksMovement: false },
+    [TileType.RIVER_SHALLOW]: { walkable: true, swimmable: true, interactable: false, blocksMovement: false },
+    [TileType.RIVER_DEEP]: { walkable: true, swimmable: true, interactable: false, blocksMovement: false },
+    [TileType.OCEAN]: { walkable: true, swimmable: true, interactable: false, blocksMovement: false },
     [TileType.BOULDER]: { walkable: false, swimmable: false, interactable: false, blocksMovement: true },
     [TileType.CLIFF]: { walkable: false, swimmable: false, interactable: false, blocksMovement: true },
     [TileType.TREE]: { walkable: false, swimmable: false, interactable: true, blocksMovement: true },

@@ -51,14 +51,15 @@ export class Tile {
         return TILE_PROPERTIES[this.type].blocksMovement || this.occupiedBy !== null;
     }
 
-    canEnter(isSwimming: boolean): boolean {
+    canEnter(_isSwimming: boolean = false): boolean {
         if (this.occupiedBy) return false;
 
-        if (isSwimming) {
-            return this.isSwimmable();
-        } else {
-            return this.isWalkable();
-        }
+        // Otters can walk on land and swim in water
+        return this.isWalkable() || this.isSwimmable();
+    }
+
+    isWaterTile(): boolean {
+        return this.isSwimmable();
     }
 
     setResource(type: ResourceType, count: number): void {

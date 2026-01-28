@@ -6,6 +6,7 @@ export class Player {
     belly: Phaser.GameObjects.Graphics | null;
     head: Phaser.GameObjects.Graphics | null;
     direction: Direction;
+    isSwimming: boolean = false;
 
     // Size constants - fits within 32x32 square
     readonly BELLY_RADIUS = 10;

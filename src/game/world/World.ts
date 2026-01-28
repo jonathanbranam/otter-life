@@ -62,44 +62,47 @@ export class World {
 
     generateRiver(): void {
         // Start from southwest corner
-        let currentX = Math.floor(this.width * 0.1); // Start 10% from left edge
+        let currentX = Math.floor(this.width * 0.15); // Start 15% from left edge
         let currentY = this.height - 3; // Near bottom, inside edge
 
-        const riverPath: { x: number; y: number }[] = [];
-        const riverWidth = 3;
+        const riverPath: { x: number; y: number; width: number }[] = [];
 
-        // Generate river path from south to north with meandering
+        // Generate river path from south to north with meandering and varying width
         while (currentY > 2) {
-            riverPath.push({ x: currentX, y: currentY });
+            // Vary river width between 8 and 16 tiles
+            const width = 8 + Math.floor(Math.random() * 9);
+            riverPath.push({ x: currentX, y: currentY, width });
 
             // Move north with some random east/west drift
             currentY -= 1;
 
             const drift = Math.random();
-            if (drift < 0.3 && currentX > 5) {
+            if (drift < 0.35 && currentX > 20) {
                 currentX -= 1; // Drift west
-            } else if (drift > 0.7 && currentX < this.width - 5) {
+            } else if (drift > 0.65 && currentX < this.width - 20) {
                 currentX += 1; // Drift east
             }
 
             // Occasionally make bigger turns
-            if (Math.random() < 0.1) {
+            if (Math.random() < 0.15) {
                 const bigTurn = Math.random();
-                if (bigTurn < 0.5 && currentX > 10) {
-                    currentX -= Math.floor(Math.random() * 3) + 1;
-                } else if (currentX < this.width - 10) {
-                    currentX += Math.floor(Math.random() * 3) + 1;
+                if (bigTurn < 0.5 && currentX > 30) {
+                    currentX -= Math.floor(Math.random() * 5) + 2;
+                } else if (currentX < this.width - 30) {
+                    currentX += Math.floor(Math.random() * 5) + 2;
                 }
             }
 
             // Keep within bounds
-            currentX = Math.max(5, Math.min(this.width - 5, currentX));
+            currentX = Math.max(20, Math.min(this.width - 20, currentX));
         }
 
         // Paint the river and surrounding tiles
         for (const point of riverPath) {
-            for (let dy = -riverWidth; dy <= riverWidth; dy++) {
-                for (let dx = -riverWidth; dx <= riverWidth; dx++) {
+            const riverWidth = point.width;
+
+            for (let dy = -riverWidth - 5; dy <= riverWidth + 5; dy++) {
+                for (let dx = -riverWidth - 5; dx <= riverWidth + 5; dx++) {
                     const tx = point.x + dx;
                     const ty = point.y + dy;
 
@@ -114,21 +117,86 @@ export class World {
                             continue;
                         }
 
-                        if (distance <= 1) {
-                            // River center
-                            tile.type = TileType.RIVER;
-                        } else if (distance <= 1.5) {
+                        if (distance <= riverWidth * 0.3) {
+                            // Deep river center
+                            tile.type = TileType.RIVER_DEEP;
+                        } else if (distance <= riverWidth * 0.7) {
+                            // Shallow river
+                            tile.type = TileType.RIVER_SHALLOW;
+                        } else if (distance <= riverWidth + 1) {
                             // Shoreline
                             tile.type = TileType.SHORELINE;
-                        } else if (distance <= 2.5) {
+                        } else if (distance <= riverWidth + 2.5) {
                             // Mud zone
                             tile.type = TileType.MUD;
                             if (Math.random() < 0.3) {
                                 tile.setResource(ResourceType.MUD, Math.floor(Math.random() * 3) + 1);
                             }
-                        } else if (distance <= 3.5) {
+                        } else if (distance <= riverWidth + 4) {
                             // Dirt transition
                             tile.type = TileType.DIRT;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Add small islands in the river
+        this.generateIslands(riverPath);
+    }
+
+    generateIslands(riverPath: { x: number; y: number; width: number }[]): void {
+        // Place 5-10 small islands along the river
+        const islandCount = 5 + Math.floor(Math.random() * 6);
+
+        for (let i = 0; i < islandCount; i++) {
+            // Pick a random point along the river
+            const pathIndex = Math.floor(Math.random() * riverPath.length);
+            const point = riverPath[pathIndex];
+
+            // Place island near the center of the river
+            const offsetX = Math.floor(Math.random() * 8) - 4;
+            const offsetY = Math.floor(Math.random() * 8) - 4;
+            const islandX = point.x + offsetX;
+            const islandY = point.y + offsetY;
+
+            // Island size: 2-4 tiles radius
+            const islandRadius = 2 + Math.floor(Math.random() * 3);
+
+            // Create the island
+            for (let dy = -islandRadius; dy <= islandRadius; dy++) {
+                for (let dx = -islandRadius; dx <= islandRadius; dx++) {
+                    const tx = islandX + dx;
+                    const ty = islandY + dy;
+
+                    if (this.isInBounds(tx, ty)) {
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+                        const tile = this.tiles[ty][tx];
+
+                        // Only create islands in water tiles
+                        if (tile.type !== TileType.RIVER_SHALLOW &&
+                            tile.type !== TileType.RIVER_DEEP) {
+                            continue;
+                        }
+
+                        if (distance <= islandRadius * 0.5) {
+                            // Island center - grass or dirt
+                            tile.type = Math.random() < 0.7 ? TileType.GRASS : TileType.DIRT;
+                        } else if (distance <= islandRadius * 0.8) {
+                            // Island edge - mud or dirt
+                            tile.type = Math.random() < 0.5 ? TileType.MUD : TileType.DIRT;
+                        } else if (distance <= islandRadius) {
+                            // Island shore
+                            tile.type = TileType.SHORELINE;
+                        }
+
+                        // Add some trees to islands
+                        if ((tile.type === TileType.GRASS || tile.type === TileType.DIRT) &&
+                            Math.random() < 0.2) {
+                            tile.type = TileType.TREE;
+                            if (Math.random() < 0.5) {
+                                tile.setResource(ResourceType.TWIGS, Math.floor(Math.random() * 3) + 1);
+                            }
                         }
                     }
                 }
