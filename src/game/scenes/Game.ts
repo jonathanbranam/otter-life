@@ -1,5 +1,5 @@
 import { Scene } from 'phaser';
-import { SCREEN_WIDTH, SCREEN_HEIGHT } from '../constants';
+import { SCREEN_WIDTH, SCREEN_HEIGHT, TILE_SIZE } from '../constants';
 import { Player } from '../entities/Player';
 
 export class Game extends Scene
@@ -80,8 +80,14 @@ export class Game extends Scene
 
     setupPlayer ()
     {
-        const centerX = SCREEN_WIDTH / 2;
-        const centerY = SCREEN_HEIGHT / 2;
+        // Start at tile (12, 12) which is near the center
+        const startTileX = 12;
+        const startTileY = 12;
+
+        // Center player within the tile
+        const centerX = startTileX * TILE_SIZE + TILE_SIZE / 2;
+        const centerY = startTileY * TILE_SIZE + TILE_SIZE / 2;
+
         this.player = new Player(this, centerX, centerY);
     }
 
@@ -104,39 +110,37 @@ export class Game extends Scene
         });
 
         // Arrow keys for player movement
-        const moveDistance = 25; // One grid tile
-
         keyboard.on('keydown-UP', () => {
-            if (this.player) this.player.move(0, -moveDistance);
+            if (this.player) this.player.move(0, -TILE_SIZE);
         });
 
         keyboard.on('keydown-DOWN', () => {
-            if (this.player) this.player.move(0, moveDistance);
+            if (this.player) this.player.move(0, TILE_SIZE);
         });
 
         keyboard.on('keydown-LEFT', () => {
-            if (this.player) this.player.move(-moveDistance, 0);
+            if (this.player) this.player.move(-TILE_SIZE, 0);
         });
 
         keyboard.on('keydown-RIGHT', () => {
-            if (this.player) this.player.move(moveDistance, 0);
+            if (this.player) this.player.move(TILE_SIZE, 0);
         });
 
         // WASD keys for player movement
         keyboard.on('keydown-W', () => {
-            if (this.player) this.player.move(0, -moveDistance);
+            if (this.player) this.player.move(0, -TILE_SIZE);
         });
 
         keyboard.on('keydown-S', () => {
-            if (this.player) this.player.move(0, moveDistance);
+            if (this.player) this.player.move(0, TILE_SIZE);
         });
 
         keyboard.on('keydown-A', () => {
-            if (this.player) this.player.move(-moveDistance, 0);
+            if (this.player) this.player.move(-TILE_SIZE, 0);
         });
 
         keyboard.on('keydown-D', () => {
-            if (this.player) this.player.move(moveDistance, 0);
+            if (this.player) this.player.move(TILE_SIZE, 0);
         });
     }
 
@@ -148,20 +152,19 @@ export class Game extends Scene
             return;
         }
 
-        const tileSize = 25; // 32x32 tiles means 800/32 = 25 pixels per tile
         const lineColor = 0x808080;
         const lineAlpha = 0.4;
 
         this.grid.lineStyle(1, lineColor, lineAlpha);
 
-        // Draw vertical lines
-        for (let x = 0; x <= SCREEN_WIDTH; x += tileSize) {
+        // Draw vertical lines (26 lines for 25 tiles)
+        for (let x = 0; x <= SCREEN_WIDTH; x += TILE_SIZE) {
             this.grid.moveTo(x, 0);
             this.grid.lineTo(x, SCREEN_HEIGHT);
         }
 
-        // Draw horizontal lines
-        for (let y = 0; y <= SCREEN_HEIGHT; y += tileSize) {
+        // Draw horizontal lines (26 lines for 25 tiles)
+        for (let y = 0; y <= SCREEN_HEIGHT; y += TILE_SIZE) {
             this.grid.moveTo(0, y);
             this.grid.lineTo(SCREEN_WIDTH, y);
         }
