@@ -22,9 +22,9 @@ export class Game extends Scene
         this.background = this.add.image(SCREEN_CENTER_X, SCREEN_CENTER_Y, 'background');
         this.background.setAlpha(0.5);
 
-        this.msg_text = this.add.text(SCREEN_CENTER_X, SCREEN_CENTER_Y, 'Make something fun!\nand share it with us:\nsupport@phaser.io', {
-            fontFamily: 'Arial Black', fontSize: 38, color: '#ffffff',
-            stroke: '#000000', strokeThickness: 8,
+        this.msg_text = this.add.text(SCREEN_WIDTH - 130, 40, "Otter's Life", {
+            fontFamily: 'Arial', fontSize: 38, color: '#ffffff',
+            stroke: '#000000', strokeThickness: 4,
             align: 'center'
         });
         this.msg_text.setOrigin(0.5);
