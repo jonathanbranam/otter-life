@@ -393,11 +393,30 @@ export class Game extends Scene
         const isSwimming = this.player?.isSwimming ? ' (swimming)' : '';
         const canDive = tile?.type === TileType.RIVER_DEEP;
 
-        this.debug_text.setText([
+        // Check if player is standing on a river path point
+        let riverPathIndex = -1;
+        for (let i = 0; i < this.world.riverPath.length; i++) {
+            const point = this.world.riverPath[i];
+            if (point.x === this.playerTileX && point.y === this.playerTileY) {
+                riverPathIndex = i;
+                break;
+            }
+        }
+
+        const debugLines = [
             `Tile: (${this.playerTileX}, ${this.playerTileY})`,
             `Type: ${tileType}${isSwimming}`,
-            canDive ? 'Press B to dive into river' : ''
-        ]);
+        ];
+
+        if (riverPathIndex >= 0) {
+            debugLines.push(`River Path Index: ${riverPathIndex}`);
+        }
+
+        if (canDive) {
+            debugLines.push('Press B to dive into river');
+        }
+
+        this.debug_text.setText(debugLines);
     }
 
     updateGrid ()
