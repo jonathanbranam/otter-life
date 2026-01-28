@@ -1,12 +1,15 @@
 import { Tile } from './Tile';
 import { TileType } from './TileType';
 import { ResourceType } from './Tile';
+import { River } from './River';
 
 export class World {
     width: number;
     height: number;
     tiles: Tile[][];
     riverPath: { x: number; y: number; width: number }[] = [];
+    river: River | null = null;
+    riverLength: number = 0;
 
     constructor(width: number = 500, height: number = 500) {
         this.width = width;
@@ -30,6 +33,11 @@ export class World {
 
         // Generate winding river from southwest to north
         this.generateRiver();
+
+        // Compute river length and create River world
+        this.riverLength = this.riverPath.length;
+        this.river = new River(this.riverLength);
+        console.log(`River generated with length: ${this.riverLength} tiles`);
 
         // Add some trees scattered around
         this.generateTrees();
@@ -230,5 +238,33 @@ export class World {
         if (tile) {
             tile.vacate();
         }
+    }
+
+    // Find the river path index closest to a given world tile position
+    findRiverPathIndex(worldX: number, worldY: number): number {
+        let closestIndex = 0;
+        let minDistance = Infinity;
+
+        for (let i = 0; i < this.riverPath.length; i++) {
+            const point = this.riverPath[i];
+            const dx = worldX - point.x;
+            const dy = worldY - point.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            if (distance < minDistance) {
+                minDistance = distance;
+                closestIndex = i;
+            }
+        }
+
+        return closestIndex;
+    }
+
+    // Get world coordinates from river path index
+    getRiverPathPosition(index: number): { x: number; y: number } | null {
+        if (index >= 0 && index < this.riverPath.length) {
+            return { x: this.riverPath[index].x, y: this.riverPath[index].y };
+        }
+        return null;
     }
 }

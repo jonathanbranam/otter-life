@@ -1,7 +1,7 @@
 import { Scene } from 'phaser';
 import { SCREEN_WIDTH, SCREEN_HEIGHT, TILE_SIZE, WORLD_WIDTH, WORLD_HEIGHT } from '../constants';
 import { Player } from '../entities/Player';
-import { World } from '../world';
+import { World, TileType } from '../world';
 import { TileRenderer } from '../rendering/TileRenderer';
 
 export class Game extends Scene
@@ -24,6 +24,13 @@ export class Game extends Scene
         super('Game');
     }
 
+    init(data?: { exitRiver?: boolean; riverIndex?: number }) {
+        if (data?.exitRiver && data.riverIndex !== undefined) {
+            // Returning from river - will position player at exit point
+            this.handleRiverExit(data.riverIndex);
+        }
+    }
+
     create ()
     {
         this.setupCamera();
@@ -34,6 +41,12 @@ export class Game extends Scene
         this.setupPlayer();
         this.setupGrid();
         this.setupKeyboardControls();
+    }
+
+    handleRiverExit(riverIndex: number) {
+        // This will be used during player setup to position them at the exit point
+        // Store the exit data for use in setupPlayer
+        this.registry.set('riverExitIndex', riverIndex);
     }
 
     setupCamera ()
@@ -130,25 +143,50 @@ export class Game extends Scene
     {
         if (!this.world) return;
 
-        // Calculate tile position at center of camera view
-        const cameraCenterTileX = Math.floor((this.camera.scrollX + SCREEN_WIDTH / 2) / TILE_SIZE);
-        const cameraCenterTileY = Math.floor((this.camera.scrollY + SCREEN_HEIGHT / 2) / TILE_SIZE);
+        let startTileX: number;
+        let startTileY: number;
 
-        // Find a walkable tile near the camera center
-        let startTileX = cameraCenterTileX;
-        let startTileY = cameraCenterTileY;
-        let found = false;
+        // Check if returning from river
+        const riverExitIndex = this.registry.get('riverExitIndex');
+        if (riverExitIndex !== undefined) {
+            // Position player at river exit point
+            const exitPos = this.world.getRiverPathPosition(riverExitIndex);
+            if (exitPos) {
+                startTileX = exitPos.x;
+                startTileY = exitPos.y;
+                console.log(`Player exiting river at tile (${startTileX}, ${startTileY})`);
+            } else {
+                // Fallback to camera center if exit position not found
+                startTileX = Math.floor((this.camera.scrollX + SCREEN_WIDTH / 2) / TILE_SIZE);
+                startTileY = Math.floor((this.camera.scrollY + SCREEN_HEIGHT / 2) / TILE_SIZE);
+            }
+            // Clear the registry
+            this.registry.remove('riverExitIndex');
 
-        for (let radius = 0; radius < 50 && !found; radius++) {
-            for (let dy = -radius; dy <= radius && !found; dy++) {
-                for (let dx = -radius; dx <= radius && !found; dx++) {
-                    const tx = cameraCenterTileX + dx;
-                    const ty = cameraCenterTileY + dy;
+            // Position camera at exit location
+            this.camera.scrollX = startTileX * TILE_SIZE - SCREEN_WIDTH / 2;
+            this.camera.scrollY = startTileY * TILE_SIZE - SCREEN_HEIGHT / 2;
+        } else {
+            // Normal spawn - Calculate tile position at center of camera view
+            const cameraCenterTileX = Math.floor((this.camera.scrollX + SCREEN_WIDTH / 2) / TILE_SIZE);
+            const cameraCenterTileY = Math.floor((this.camera.scrollY + SCREEN_HEIGHT / 2) / TILE_SIZE);
 
-                    if (this.world.canMoveTo(tx, ty, false)) {
-                        startTileX = tx;
-                        startTileY = ty;
-                        found = true;
+            // Find a walkable tile near the camera center
+            startTileX = cameraCenterTileX;
+            startTileY = cameraCenterTileY;
+            let found = false;
+
+            for (let radius = 0; radius < 50 && !found; radius++) {
+                for (let dy = -radius; dy <= radius && !found; dy++) {
+                    for (let dx = -radius; dx <= radius && !found; dx++) {
+                        const tx = cameraCenterTileX + dx;
+                        const ty = cameraCenterTileY + dy;
+
+                        if (this.world.canMoveTo(tx, ty, false)) {
+                            startTileX = tx;
+                            startTileY = ty;
+                            found = true;
+                        }
                     }
                 }
             }
@@ -251,6 +289,13 @@ export class Game extends Scene
             return; // Can't move there
         }
 
+        // Check if entering deep water - switch to river scene
+        const newTile = this.world.getTile(newTileX, newTileY);
+        if (newTile && newTile.type === TileType.RIVER_DEEP) {
+            this.enterRiver(newTileX, newTileY);
+            return;
+        }
+
         // Vacate current tile
         this.world.vacateTile(this.playerTileX, this.playerTileY);
 
@@ -267,10 +312,24 @@ export class Game extends Scene
         this.world.occupyTile(newTileX, newTileY, this.player);
 
         // Update swimming state based on tile type
-        const newTile = this.world.getTile(newTileX, newTileY);
         if (newTile) {
             this.player.isSwimming = newTile.isWaterTile();
         }
+    }
+
+    enterRiver(tileX: number, tileY: number): void {
+        if (!this.world || !this.world.river) return;
+
+        // Find the river path index closest to this tile
+        const riverIndex = this.world.findRiverPathIndex(tileX, tileY);
+
+        console.log(`Entering river at world tile (${tileX}, ${tileY}), river index: ${riverIndex}`);
+
+        // Switch to river scene
+        this.scene.start('GameRiver', {
+            river: this.world.river,
+            riverIndex: riverIndex
+        });
     }
 
     update ()
