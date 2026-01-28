@@ -117,9 +117,13 @@ export class Game extends Scene
 
     setupWorld ()
     {
-        console.log('Generating world...');
-        this.world = new World(WORLD_WIDTH, WORLD_HEIGHT);
-        console.log('World generated successfully');
+        // Retrieve World from registry (created in Preloader)
+        const world = this.registry.get('world') as World | null;
+        if (!world) {
+            throw new Error('World not initialized in Preloader');
+        }
+        this.world = world;
+        console.log('World retrieved from registry');
 
         // Create tile renderer
         this.tileRenderer = new TileRenderer(this, this.world);
@@ -410,13 +414,11 @@ export class Game extends Scene
         if (riverScene && this.scene.isSleeping('GameRiver')) {
             // Wake existing river scene with new entry data
             this.scene.wake('GameRiver', {
-                river: this.world.river,
                 riverIndex: riverIndex
             });
         } else {
             // Launch river scene for the first time
             this.scene.launch('GameRiver', {
-                river: this.world.river,
                 riverIndex: riverIndex
             });
         }

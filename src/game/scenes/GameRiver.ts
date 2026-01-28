@@ -2,6 +2,7 @@ import { Scene } from 'phaser';
 import { SCREEN_WIDTH, SCREEN_HEIGHT, TILE_SIZE } from '../constants';
 import { Player } from '../entities/Player';
 import { River, RiverTileType } from '../world/River';
+import { World } from '../world/World';
 
 const RIVER_TILE_COLORS = {
     [RiverTileType.SKY]: 0xFFFFFF,        // White sky
@@ -27,8 +28,14 @@ export class GameRiver extends Scene {
         super('GameRiver');
     }
 
-    init(data: { river: River; riverIndex: number }) {
-        this.river = data.river;
+    init(data: { riverIndex: number }) {
+        // Retrieve River from World in registry
+        const world = this.registry.get('world') as World | null;
+        if (!world?.river) {
+            throw new Error('World/River not initialized in Preloader');
+        }
+        this.river = world.river;
+
         this.entryRiverIndex = data.riverIndex;
         this.riverX = data.riverIndex;
 
@@ -152,11 +159,17 @@ export class GameRiver extends Scene {
     }
 
     setupWakeHandler() {
-        this.events.on(Phaser.Scenes.Events.WAKE, (_sys: Phaser.Scenes.Systems, data?: { river: River; riverIndex: number }) => {
+        this.events.on(Phaser.Scenes.Events.WAKE, (_sys: Phaser.Scenes.Systems, data?: { riverIndex: number }) => {
             console.log("River wake.");
             // This is called when re-entering the river from a different location
-            if (data?.river && data.riverIndex !== undefined && this.player && this.river) {
-                this.river = data.river;
+            if (data?.riverIndex !== undefined && this.player) {
+                // Retrieve River from World in registry
+                const world = this.registry.get('world') as World | null;
+                if (!world?.river) {
+                    throw new Error('World/River not initialized in Preloader');
+                }
+                this.river = world.river;
+
                 this.entryRiverIndex = data.riverIndex;
                 this.riverX = data.riverIndex;
 

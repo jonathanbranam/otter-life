@@ -1,5 +1,6 @@
 import { Scene } from 'phaser';
-import { SCREEN_CENTER_X, SCREEN_CENTER_Y } from '../constants';
+import { SCREEN_CENTER_X, SCREEN_CENTER_Y, WORLD_WIDTH, WORLD_HEIGHT } from '../constants';
+import { World } from '../world/World';
 
 export class Preloader extends Scene
 {
@@ -40,6 +41,12 @@ export class Preloader extends Scene
     {
         //  When all the assets have loaded, it's often worth creating global objects here that the rest of the game can use.
         //  For example, you can define global animations here, so we can use them in other scenes.
+
+        // Initialize and store World in registry for access across all scenes
+        console.log('Initializing world...');
+        const world = new World(WORLD_WIDTH, WORLD_HEIGHT);
+        this.registry.set('world', world);
+        console.log('World initialized and stored in registry');
 
         //  Move to the MainMenu. You could also swap this for a Scene Transition, such as a camera fade.
         this.scene.start('Game');
