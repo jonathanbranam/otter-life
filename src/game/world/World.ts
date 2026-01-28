@@ -61,13 +61,12 @@ export class World {
     }
 
     generateRiver(): void {
-        // Start from southwest corner
+        // Generate river path from south to north with meandering
+        const riverPath: { x: number; y: number; width: number }[] = [];
+
         let currentX = Math.floor(this.width * 0.15); // Start 15% from left edge
         let currentY = this.height - 3; // Near bottom, inside edge
 
-        const riverPath: { x: number; y: number; width: number }[] = [];
-
-        // Generate river path from south to north with meandering and varying width
         while (currentY > 2) {
             // Vary river width between 8 and 16 tiles
             const width = 8 + Math.floor(Math.random() * 9);
@@ -97,46 +96,52 @@ export class World {
             currentX = Math.max(20, Math.min(this.width - 20, currentX));
         }
 
-        // Paint the river and surrounding tiles
-        for (const point of riverPath) {
-            const riverWidth = point.width;
+        // Now process every tile in the world based on distance to river path
+        for (let ty = 0; ty < this.height; ty++) {
+            for (let tx = 0; tx < this.width; tx++) {
+                const tile = this.tiles[ty][tx];
 
-            for (let dy = -riverWidth - 5; dy <= riverWidth + 5; dy++) {
-                for (let dx = -riverWidth - 5; dx <= riverWidth + 5; dx++) {
-                    const tx = point.x + dx;
-                    const ty = point.y + dy;
+                // Don't overwrite edge tiles
+                if (tile.type === TileType.BOULDER ||
+                    tile.type === TileType.CLIFF ||
+                    tile.type === TileType.ROCK) {
+                    continue;
+                }
 
-                    if (this.isInBounds(tx, ty)) {
-                        const distance = Math.sqrt(dx * dx + dy * dy);
-                        const tile = this.tiles[ty][tx];
+                // Find minimum distance to any point on the river path
+                let minDistance = Infinity;
+                let nearestWidth = 0;
 
-                        // Don't overwrite edge tiles
-                        if (tile.type === TileType.BOULDER ||
-                            tile.type === TileType.CLIFF ||
-                            tile.type === TileType.ROCK) {
-                            continue;
-                        }
+                for (const point of riverPath) {
+                    const dx = tx - point.x;
+                    const dy = ty - point.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
 
-                        if (distance <= riverWidth * 0.3) {
-                            // Deep river center
-                            tile.type = TileType.RIVER_DEEP;
-                        } else if (distance <= riverWidth * 0.7) {
-                            // Shallow river
-                            tile.type = TileType.RIVER_SHALLOW;
-                        } else if (distance <= riverWidth + 1) {
-                            // Shoreline
-                            tile.type = TileType.SHORELINE;
-                        } else if (distance <= riverWidth + 2.5) {
-                            // Mud zone
-                            tile.type = TileType.MUD;
-                            if (Math.random() < 0.3) {
-                                tile.setResource(ResourceType.MUD, Math.floor(Math.random() * 3) + 1);
-                            }
-                        } else if (distance <= riverWidth + 4) {
-                            // Dirt transition
-                            tile.type = TileType.DIRT;
-                        }
+                    if (distance < minDistance) {
+                        minDistance = distance;
+                        nearestWidth = point.width;
                     }
+                }
+
+                // Assign tile type based on distance to river
+                if (minDistance <= nearestWidth * 0.3) {
+                    // Deep river center
+                    tile.type = TileType.RIVER_DEEP;
+                } else if (minDistance <= nearestWidth * 0.7) {
+                    // Shallow river
+                    tile.type = TileType.RIVER_SHALLOW;
+                } else if (minDistance <= nearestWidth + 1) {
+                    // Shoreline
+                    tile.type = TileType.SHORELINE;
+                } else if (minDistance <= nearestWidth + 2.5) {
+                    // Mud zone
+                    tile.type = TileType.MUD;
+                    if (Math.random() < 0.3) {
+                        tile.setResource(ResourceType.MUD, Math.floor(Math.random() * 3) + 1);
+                    }
+                } else if (minDistance <= nearestWidth + 4) {
+                    // Dirt transition
+                    tile.type = TileType.DIRT;
                 }
             }
         }
