@@ -89,6 +89,11 @@ export class GameRiver extends Scene {
         const keyboard = this.input.keyboard;
         if (!keyboard) return;
 
+        // Exit river with 'b' key
+        keyboard.on('keydown-B', () => {
+            this.tryExitRiver();
+        });
+
         keyboard.on('keydown-UP', () => this.movePlayer(0, -1));
         keyboard.on('keydown-DOWN', () => this.movePlayer(0, 1));
         keyboard.on('keydown-LEFT', () => this.movePlayer(-1, 0));
@@ -105,13 +110,6 @@ export class GameRiver extends Scene {
 
         const newX = this.riverX + tileDx;
         const newY = this.riverY + tileDy;
-
-        // Check if trying to exit to sky
-        if (newY < 0 || (this.river.isInBounds(newX, newY) &&
-            this.river.getTile(newX, newY)?.isSky())) {
-            this.exitRiver();
-            return;
-        }
 
         // Check bounds
         if (!this.river.isInBounds(newX, newY)) {
@@ -130,6 +128,16 @@ export class GameRiver extends Scene {
 
         this.riverX = newX;
         this.riverY = newY;
+    }
+
+    tryExitRiver() {
+        if (!this.river) return;
+
+        // Check if player is within 1-2 tiles from the sky
+        // Sky is tiles 0-2, water starts at 3, so 1-2 tiles from sky means y = 3 or 4
+        if (this.riverY >= 3 && this.riverY <= 4) {
+            this.exitRiver();
+        }
     }
 
     exitRiver() {
@@ -184,11 +192,13 @@ export class GameRiver extends Scene {
 
         const tile = this.river.getTile(this.riverX, this.riverY);
         const tileType = tile ? tile.type : 'unknown';
+        const canExit = this.riverY >= 3 && this.riverY <= 4;
 
         this.debug_text.setText([
             `River Position: (${this.riverX}, ${this.riverY})`,
             `Tile Type: ${tileType}`,
-            `River Length: ${this.river.length}`
+            `River Length: ${this.river.length}`,
+            canExit ? 'Press B to exit river' : ''
         ]);
     }
 }

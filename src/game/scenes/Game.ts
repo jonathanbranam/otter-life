@@ -167,20 +167,31 @@ export class Game extends Scene
             this.camera.scrollX = startTileX * TILE_SIZE - SCREEN_WIDTH / 2;
             this.camera.scrollY = startTileY * TILE_SIZE - SCREEN_HEIGHT / 2;
         } else {
-            // Normal spawn - Calculate tile position at center of camera view
-            const cameraCenterTileX = Math.floor((this.camera.scrollX + SCREEN_WIDTH / 2) / TILE_SIZE);
-            const cameraCenterTileY = Math.floor((this.camera.scrollY + SCREEN_HEIGHT / 2) / TILE_SIZE);
+            // Normal spawn - Position near north end of river
+            if (this.world.riverPath.length > 0) {
+                // Get a point 10-20 tiles from the north end
+                const tilesFromNorth = 10 + Math.floor(Math.random() * 11); // Random between 10-20
+                const riverIndex = Math.max(0, this.world.riverPath.length - tilesFromNorth);
+                const riverPoint = this.world.riverPath[riverIndex];
 
-            // Find a walkable tile near the camera center
-            startTileX = cameraCenterTileX;
-            startTileY = cameraCenterTileY;
+                // Start a few tiles to the side of the river
+                startTileX = riverPoint.x + 5;
+                startTileY = riverPoint.y;
+
+                console.log(`Starting near north end of river at index ${riverIndex}, tile (${startTileX}, ${startTileY})`);
+            } else {
+                // Fallback if no river
+                startTileX = Math.floor((this.camera.scrollX + SCREEN_WIDTH / 2) / TILE_SIZE);
+                startTileY = Math.floor((this.camera.scrollY + SCREEN_HEIGHT / 2) / TILE_SIZE);
+            }
+
+            // Find a walkable tile near the target position
             let found = false;
-
             for (let radius = 0; radius < 50 && !found; radius++) {
                 for (let dy = -radius; dy <= radius && !found; dy++) {
                     for (let dx = -radius; dx <= radius && !found; dx++) {
-                        const tx = cameraCenterTileX + dx;
-                        const ty = cameraCenterTileY + dy;
+                        const tx = startTileX + dx;
+                        const ty = startTileY + dy;
 
                         if (this.world.canMoveTo(tx, ty, false)) {
                             startTileX = tx;
@@ -190,6 +201,10 @@ export class Game extends Scene
                     }
                 }
             }
+
+            // Position camera at starting location
+            this.camera.scrollX = startTileX * TILE_SIZE - SCREEN_WIDTH / 2;
+            this.camera.scrollY = startTileY * TILE_SIZE - SCREEN_HEIGHT / 2;
         }
 
         // Center player within the tile (in world pixel coordinates)
@@ -242,6 +257,11 @@ export class Game extends Scene
             this.showGrid = !this.showGrid;
         });
 
+        // Enter river with 'b' key
+        keyboard.on('keydown-B', () => {
+            this.tryEnterRiver();
+        });
+
         // Arrow keys for player movement
         keyboard.on('keydown-UP', () => {
             this.movePlayer(0, -1);
@@ -289,13 +309,6 @@ export class Game extends Scene
             return; // Can't move there
         }
 
-        // Check if entering deep water - switch to river scene
-        const newTile = this.world.getTile(newTileX, newTileY);
-        if (newTile && newTile.type === TileType.RIVER_DEEP) {
-            this.enterRiver(newTileX, newTileY);
-            return;
-        }
-
         // Vacate current tile
         this.world.vacateTile(this.playerTileX, this.playerTileY);
 
@@ -312,8 +325,19 @@ export class Game extends Scene
         this.world.occupyTile(newTileX, newTileY, this.player);
 
         // Update swimming state based on tile type
+        const newTile = this.world.getTile(newTileX, newTileY);
         if (newTile) {
             this.player.isSwimming = newTile.isWaterTile();
+        }
+    }
+
+    tryEnterRiver(): void {
+        if (!this.player || !this.world) return;
+
+        // Check if player is on a deep river tile
+        const currentTile = this.world.getTile(this.playerTileX, this.playerTileY);
+        if (currentTile && currentTile.type === TileType.RIVER_DEEP) {
+            this.enterRiver(this.playerTileX, this.playerTileY);
         }
     }
 
@@ -358,10 +382,12 @@ export class Game extends Scene
         const tile = this.world.getTile(this.playerTileX, this.playerTileY);
         const tileType = tile ? tile.type : 'unknown';
         const isSwimming = this.player?.isSwimming ? ' (swimming)' : '';
+        const canDive = tile?.type === TileType.RIVER_DEEP;
 
         this.debug_text.setText([
             `Tile: (${this.playerTileX}, ${this.playerTileY})`,
-            `Type: ${tileType}${isSwimming}`
+            `Type: ${tileType}${isSwimming}`,
+            canDive ? 'Press B to dive into river' : ''
         ]);
     }
 
