@@ -134,4 +134,12 @@ export class Player {
         }
         return { x: 0, y: 0 };
     }
+
+    getTilePosition(): { x: number, y: number } {
+        const pos = this.getPosition();
+        return {
+            x: Math.floor(pos.x / 32), // TILE_SIZE = 32
+            y: Math.floor(pos.y / 32)
+        };
+    }
 }

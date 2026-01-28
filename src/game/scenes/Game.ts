@@ -15,6 +15,8 @@ export class Game extends Scene
     world: World | null = null;
     tileRenderer: TileRenderer | null = null;
     showGrid: boolean = false;
+    playerTileX: number = 0;
+    playerTileY: number = 0;
 
     constructor ()
     {
@@ -145,8 +147,24 @@ export class Game extends Scene
 
         this.player = new Player(this, centerX, centerY);
 
+        // Track player tile position
+        this.playerTileX = startTileX;
+        this.playerTileY = startTileY;
+
         // Occupy the tile in the world
         this.world.occupyTile(startTileX, startTileY, this.player);
+
+        // Set up camera to follow player's belly
+        if (this.player.belly) {
+            // Calculate deadzone: 8 tiles from each edge
+            const deadzoneMargin = 8 * TILE_SIZE;
+            const deadzoneWidth = SCREEN_WIDTH - (2 * deadzoneMargin);
+            const deadzoneHeight = SCREEN_HEIGHT - (2 * deadzoneMargin);
+
+            // Set up camera following with deadzone
+            this.camera.startFollow(this.player.belly, false, 0.1, 0.1);
+            this.camera.setDeadzone(deadzoneWidth, deadzoneHeight);
+        }
 
         console.log(`Player spawned at tile (${startTileX}, ${startTileY}) pixel (${centerX}, ${centerY})`);
     }
@@ -169,37 +187,65 @@ export class Game extends Scene
 
         // Arrow keys for player movement
         keyboard.on('keydown-UP', () => {
-            if (this.player) this.player.move(0, -TILE_SIZE);
+            this.movePlayer(0, -1);
         });
 
         keyboard.on('keydown-DOWN', () => {
-            if (this.player) this.player.move(0, TILE_SIZE);
+            this.movePlayer(0, 1);
         });
 
         keyboard.on('keydown-LEFT', () => {
-            if (this.player) this.player.move(-TILE_SIZE, 0);
+            this.movePlayer(-1, 0);
         });
 
         keyboard.on('keydown-RIGHT', () => {
-            if (this.player) this.player.move(TILE_SIZE, 0);
+            this.movePlayer(1, 0);
         });
 
         // WASD keys for player movement
         keyboard.on('keydown-W', () => {
-            if (this.player) this.player.move(0, -TILE_SIZE);
+            this.movePlayer(0, -1);
         });
 
         keyboard.on('keydown-S', () => {
-            if (this.player) this.player.move(0, TILE_SIZE);
+            this.movePlayer(0, 1);
         });
 
         keyboard.on('keydown-A', () => {
-            if (this.player) this.player.move(-TILE_SIZE, 0);
+            this.movePlayer(-1, 0);
         });
 
         keyboard.on('keydown-D', () => {
-            if (this.player) this.player.move(TILE_SIZE, 0);
+            this.movePlayer(1, 0);
         });
+    }
+
+    movePlayer(tileDx: number, tileDy: number): void {
+        if (!this.player || !this.world) return;
+
+        // Calculate new tile position
+        const newTileX = this.playerTileX + tileDx;
+        const newTileY = this.playerTileY + tileDy;
+
+        // Check if the new tile is walkable
+        if (!this.world.canMoveTo(newTileX, newTileY, false)) {
+            return; // Can't move there
+        }
+
+        // Vacate current tile
+        this.world.vacateTile(this.playerTileX, this.playerTileY);
+
+        // Move player in pixel coordinates
+        const pixelDx = tileDx * TILE_SIZE;
+        const pixelDy = tileDy * TILE_SIZE;
+        this.player.move(pixelDx, pixelDy);
+
+        // Update tracked tile position
+        this.playerTileX = newTileX;
+        this.playerTileY = newTileY;
+
+        // Occupy new tile
+        this.world.occupyTile(newTileX, newTileY, this.player);
     }
 
     update ()
