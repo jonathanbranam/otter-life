@@ -12,10 +12,12 @@ export class Game extends Scene
     quit_bg : Phaser.GameObjects.Rectangle;
     debug_text : Phaser.GameObjects.Text | null = null;
     grid: Phaser.GameObjects.Graphics;
+    riverPathGraphics: Phaser.GameObjects.Graphics;
     player: Player | null = null;
     world: World | null = null;
     tileRenderer: TileRenderer | null = null;
     showGrid: boolean = false;
+    showRiverPath: boolean = false;
     playerTileX: number = 0;
     playerTileY: number = 0;
 
@@ -245,6 +247,9 @@ export class Game extends Scene
     {
         this.grid = this.add.graphics();
         this.grid.setDepth(1000);
+
+        this.riverPathGraphics = this.add.graphics();
+        this.riverPathGraphics.setDepth(1001);
     }
 
     setupKeyboardControls ()
@@ -252,9 +257,10 @@ export class Game extends Scene
         const keyboard = this.input.keyboard;
         if (!keyboard) return;
 
-        // Toggle grid with 'g' key
+        // Toggle grid and river path with 'g' key
         keyboard.on('keydown-G', () => {
             this.showGrid = !this.showGrid;
+            this.showRiverPath = !this.showRiverPath;
         });
 
         // Enter river with 'b' key
@@ -373,6 +379,9 @@ export class Game extends Scene
 
         // Update grid overlay
         this.updateGrid();
+
+        // Update river path overlay
+        this.updateRiverPath();
     }
 
     updateDebugDisplay ()
@@ -431,5 +440,52 @@ export class Game extends Scene
         }
 
         this.grid.strokePath();
+    }
+
+    updateRiverPath ()
+    {
+        this.riverPathGraphics.clear();
+
+        if (!this.showRiverPath || !this.world) {
+            return;
+        }
+
+        const pathColor = 0xff00ff; // Magenta for visibility
+        const pathAlpha = 0.7;
+        const dotRadius = 3;
+
+        this.riverPathGraphics.fillStyle(pathColor, pathAlpha);
+
+        // Draw each point in the river path
+        for (let i = 0; i < this.world.riverPath.length; i++) {
+            const point = this.world.riverPath[i];
+            const pixelX = point.x * TILE_SIZE + TILE_SIZE / 2;
+            const pixelY = point.y * TILE_SIZE + TILE_SIZE / 2;
+
+            // Draw a circle at each river path point
+            this.riverPathGraphics.fillCircle(pixelX, pixelY, dotRadius);
+        }
+
+        // Draw lines connecting the points
+        if (this.world.riverPath.length > 1) {
+            this.riverPathGraphics.lineStyle(2, pathColor, pathAlpha * 0.5);
+
+            const firstPoint = this.world.riverPath[0];
+            this.riverPathGraphics.beginPath();
+            this.riverPathGraphics.moveTo(
+                firstPoint.x * TILE_SIZE + TILE_SIZE / 2,
+                firstPoint.y * TILE_SIZE + TILE_SIZE / 2
+            );
+
+            for (let i = 1; i < this.world.riverPath.length; i++) {
+                const point = this.world.riverPath[i];
+                this.riverPathGraphics.lineTo(
+                    point.x * TILE_SIZE + TILE_SIZE / 2,
+                    point.y * TILE_SIZE + TILE_SIZE / 2
+                );
+            }
+
+            this.riverPathGraphics.strokePath();
+        }
     }
 }
