@@ -1,4 +1,5 @@
 import { Scene, GameObjects } from 'phaser';
+import { SCREEN_CENTER_X, SCREEN_CENTER_Y, SCREEN_HEIGHT } from '../constants';
 
 export class MainMenu extends Scene
 {
@@ -13,11 +14,13 @@ export class MainMenu extends Scene
 
     create ()
     {
-        this.background = this.add.image(512, 384, 'background');
+        this.background = this.add.image(SCREEN_CENTER_X, SCREEN_CENTER_Y, 'background');
 
-        this.logo = this.add.image(512, 300, 'logo');
+        // Logo positioned at ~39% from top (maintaining original 300/768 ratio)
+        this.logo = this.add.image(SCREEN_CENTER_X, SCREEN_HEIGHT * 0.390625, 'logo');
 
-        this.title = this.add.text(512, 460, 'Main Menu', {
+        // Title positioned at ~60% from top (maintaining original 460/768 ratio)
+        this.title = this.add.text(SCREEN_CENTER_X, SCREEN_HEIGHT * 0.598958, 'Main Menu', {
             fontFamily: 'Arial Black', fontSize: 38, color: '#ffffff',
             stroke: '#000000', strokeThickness: 8,
             align: 'center'
