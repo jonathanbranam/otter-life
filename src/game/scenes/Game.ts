@@ -27,9 +27,50 @@ export class Game extends Scene
     }
 
     init(data?: { exitRiver?: boolean; riverIndex?: number }) {
+        // This is only called when scene starts fresh (not when waking from sleep)
         if (data?.exitRiver && data.riverIndex !== undefined) {
             // Returning from river - will position player at exit point
             this.handleRiverExit(data.riverIndex);
+        }
+    }
+
+    wake(data?: { exitRiver?: boolean; riverIndex?: number }) {
+        // This is called when scene wakes from sleep
+        if (data?.exitRiver && data.riverIndex !== undefined && this.player && this.world) {
+            // Returning from river - reposition player at exit point
+            const exitPos = this.world.getRiverPathPosition(data.riverIndex);
+            if (exitPos) {
+                // Vacate current tile
+                this.world.vacateTile(this.playerTileX, this.playerTileY);
+
+                // Update player position
+                this.playerTileX = exitPos.x;
+                this.playerTileY = exitPos.y;
+
+                // Move player sprite to new position
+                const centerX = exitPos.x * TILE_SIZE + TILE_SIZE / 2;
+                const centerY = exitPos.y * TILE_SIZE + TILE_SIZE / 2;
+
+                if (this.player.belly) {
+                    this.player.belly.x = centerX;
+                    this.player.belly.y = centerY;
+                }
+                if (this.player.head) {
+                    this.player.head.x = centerX;
+                    this.player.head.y = centerY - 8;
+                }
+
+                // Occupy new tile
+                this.world.occupyTile(exitPos.x, exitPos.y, this.player);
+
+                // Update swimming state
+                const exitTile = this.world.getTile(exitPos.x, exitPos.y);
+                if (exitTile) {
+                    this.player.isSwimming = exitTile.isWaterTile();
+                }
+
+                console.log(`Player exited river at tile (${exitPos.x}, ${exitPos.y})`);
+            }
         }
     }
 
@@ -355,11 +396,25 @@ export class Game extends Scene
 
         console.log(`Entering river at world tile (${tileX}, ${tileY}), river index: ${riverIndex}`);
 
-        // Switch to river scene
-        this.scene.start('GameRiver', {
-            river: this.world.river,
-            riverIndex: riverIndex
-        });
+        const riverScene = this.scene.get('GameRiver');
+
+        // Sleep this scene
+        this.scene.sleep();
+
+        // Check if river scene exists and is sleeping, or needs to be launched
+        if (riverScene && this.scene.isSleeping('GameRiver')) {
+            // Wake existing river scene with new entry data
+            this.scene.wake('GameRiver', {
+                river: this.world.river,
+                riverIndex: riverIndex
+            });
+        } else {
+            // Launch river scene for the first time
+            this.scene.launch('GameRiver', {
+                river: this.world.river,
+                riverIndex: riverIndex
+            });
+        }
     }
 
     update ()
