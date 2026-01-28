@@ -34,44 +34,48 @@ export class Game extends Scene
         }
     }
 
-    wake(data?: { exitRiver?: boolean; riverIndex?: number }) {
-        // This is called when scene wakes from sleep
-        if (data?.exitRiver && data.riverIndex !== undefined && this.player && this.world) {
-            // Returning from river - reposition player at exit point
-            const exitPos = this.world.getRiverPathPosition(data.riverIndex);
-            if (exitPos) {
-                // Vacate current tile
-                this.world.vacateTile(this.playerTileX, this.playerTileY);
+    setupWakeHandler ()
+    {
+        this.events.on(Phaser.Scenes.Events.WAKE, (_sys: Phaser.Scenes.Systems, data?: { exitRiver?: boolean; riverIndex?: number }) => {
+            console.log("Game wake.");
+            // This is called when scene wakes from sleep
+            if (data?.exitRiver && data.riverIndex !== undefined && this.player && this.world) {
+                // Returning from river - reposition player at exit point
+                const exitPos = this.world.getRiverPathPosition(data.riverIndex);
+                if (exitPos) {
+                    // Vacate current tile
+                    this.world.vacateTile(this.playerTileX, this.playerTileY);
 
-                // Update player position
-                this.playerTileX = exitPos.x;
-                this.playerTileY = exitPos.y;
+                    // Update player position
+                    this.playerTileX = exitPos.x;
+                    this.playerTileY = exitPos.y;
 
-                // Move player sprite to new position
-                const centerX = exitPos.x * TILE_SIZE + TILE_SIZE / 2;
-                const centerY = exitPos.y * TILE_SIZE + TILE_SIZE / 2;
+                    // Move player sprite to new position
+                    const centerX = exitPos.x * TILE_SIZE + TILE_SIZE / 2;
+                    const centerY = exitPos.y * TILE_SIZE + TILE_SIZE / 2;
 
-                if (this.player.belly) {
-                    this.player.belly.x = centerX;
-                    this.player.belly.y = centerY;
+                    if (this.player.belly) {
+                        this.player.belly.x = centerX;
+                        this.player.belly.y = centerY;
+                    }
+                    if (this.player.head) {
+                        this.player.head.x = centerX;
+                        this.player.head.y = centerY - 8;
+                    }
+
+                    // Occupy new tile
+                    this.world.occupyTile(exitPos.x, exitPos.y, this.player);
+
+                    // Update swimming state
+                    const exitTile = this.world.getTile(exitPos.x, exitPos.y);
+                    if (exitTile) {
+                        this.player.isSwimming = exitTile.isWaterTile();
+                    }
+
+                    console.log(`Player exited river at tile (${exitPos.x}, ${exitPos.y})`);
                 }
-                if (this.player.head) {
-                    this.player.head.x = centerX;
-                    this.player.head.y = centerY - 8;
-                }
-
-                // Occupy new tile
-                this.world.occupyTile(exitPos.x, exitPos.y, this.player);
-
-                // Update swimming state
-                const exitTile = this.world.getTile(exitPos.x, exitPos.y);
-                if (exitTile) {
-                    this.player.isSwimming = exitTile.isWaterTile();
-                }
-
-                console.log(`Player exited river at tile (${exitPos.x}, ${exitPos.y})`);
             }
-        }
+        });
     }
 
     create ()
@@ -84,6 +88,7 @@ export class Game extends Scene
         this.setupPlayer();
         this.setupGrid();
         this.setupKeyboardControls();
+        this.setupWakeHandler();
     }
 
     handleRiverExit(riverIndex: number) {

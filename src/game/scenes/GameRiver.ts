@@ -32,10 +32,7 @@ export class GameRiver extends Scene {
         this.entryRiverIndex = data.riverIndex;
         this.riverX = data.riverIndex;
 
-        // Start at mid-depth of the water (between sky and river bottom)
-        const bottomDepth = this.river.getRiverDepthAt(this.riverX);
-        const waterDepth = bottomDepth - this.river.skyDepth;
-        this.riverY = this.river.skyDepth + Math.floor(waterDepth / 2);
+        this.riverY = this.river.skyDepth + 1;
     }
 
     create() {
@@ -44,6 +41,7 @@ export class GameRiver extends Scene {
         this.setupPlayer();
         this.setupDebug();
         this.setupKeyboardControls();
+        this.setupWakeHandler();
     }
 
     setupCamera() {
@@ -153,33 +151,33 @@ export class GameRiver extends Scene {
         });
     }
 
-    wake(data?: { river: River; riverIndex: number }) {
-        // This is called when re-entering the river from a different location
-        if (data?.river && data.riverIndex !== undefined && this.player && this.river) {
-            this.river = data.river;
-            this.entryRiverIndex = data.riverIndex;
-            this.riverX = data.riverIndex;
+    setupWakeHandler() {
+        this.events.on(Phaser.Scenes.Events.WAKE, (_sys: Phaser.Scenes.Systems, data?: { river: River; riverIndex: number }) => {
+            console.log("River wake.");
+            // This is called when re-entering the river from a different location
+            if (data?.river && data.riverIndex !== undefined && this.player && this.river) {
+                this.river = data.river;
+                this.entryRiverIndex = data.riverIndex;
+                this.riverX = data.riverIndex;
 
-            // Reposition at mid-depth of the water at new entry point
-            const bottomDepth = this.river.getRiverDepthAt(this.riverX);
-            const waterDepth = bottomDepth - this.river.skyDepth;
-            this.riverY = this.river.skyDepth + Math.floor(waterDepth / 2);
+                this.riverY = this.river.skyDepth + 1;
 
-            // Update player sprite position
-            const pixelX = this.riverX * TILE_SIZE + TILE_SIZE / 2;
-            const pixelY = this.riverY * TILE_SIZE + TILE_SIZE / 2;
+                // Update player sprite position
+                const pixelX = this.riverX * TILE_SIZE + TILE_SIZE / 2;
+                const pixelY = this.riverY * TILE_SIZE + TILE_SIZE / 2;
 
-            if (this.player.belly) {
-                this.player.belly.x = pixelX;
-                this.player.belly.y = pixelY;
+                if (this.player.belly) {
+                    this.player.belly.x = pixelX;
+                    this.player.belly.y = pixelY;
+                }
+                if (this.player.head) {
+                    this.player.head.x = pixelX;
+                    this.player.head.y = pixelY - 8;
+                }
+
+                console.log(`Re-entering river at index ${this.riverX}, position (${this.riverX}, ${this.riverY})`);
             }
-            if (this.player.head) {
-                this.player.head.x = pixelX;
-                this.player.head.y = pixelY - 8;
-            }
-
-            console.log(`Re-entering river at index ${this.riverX}, position (${this.riverX}, ${this.riverY})`);
-        }
+        });
     }
 
     update() {
