@@ -31,7 +31,11 @@ export class GameRiver extends Scene {
         this.river = data.river;
         this.entryRiverIndex = data.riverIndex;
         this.riverX = data.riverIndex;
-        this.riverY = Math.floor(this.river.depth / 2); // Start at mid-depth
+
+        // Start at mid-depth of the water (between sky and river bottom)
+        const bottomDepth = this.river.getRiverDepthAt(this.riverX);
+        const waterDepth = bottomDepth - this.river.skyDepth;
+        this.riverY = this.river.skyDepth + Math.floor(waterDepth / 2);
     }
 
     create() {
@@ -49,7 +53,7 @@ export class GameRiver extends Scene {
         if (this.river) {
             // Set camera bounds to river size
             const riverPixelWidth = this.river.length * TILE_SIZE;
-            const riverPixelHeight = this.river.depth * TILE_SIZE;
+            const riverPixelHeight = this.river.maxDepth * TILE_SIZE;
             this.camera.setBounds(0, 0, riverPixelWidth, riverPixelHeight);
         }
     }
@@ -163,7 +167,7 @@ export class GameRiver extends Scene {
         const startTileX = Math.max(0, Math.floor(this.camera.scrollX / TILE_SIZE) - buffer);
         const startTileY = Math.max(0, Math.floor(this.camera.scrollY / TILE_SIZE) - buffer);
         const endTileX = Math.min(this.river.length, Math.ceil((this.camera.scrollX + SCREEN_WIDTH) / TILE_SIZE) + buffer);
-        const endTileY = Math.min(this.river.depth, Math.ceil((this.camera.scrollY + SCREEN_HEIGHT) / TILE_SIZE) + buffer);
+        const endTileY = Math.min(this.river.maxDepth, Math.ceil((this.camera.scrollY + SCREEN_HEIGHT) / TILE_SIZE) + buffer);
 
         // Render tiles
         for (let ty = startTileY; ty < endTileY; ty++) {
@@ -193,10 +197,13 @@ export class GameRiver extends Scene {
         const tile = this.river.getTile(this.riverX, this.riverY);
         const tileType = tile ? tile.type : 'unknown';
         const canExit = this.riverY >= 3 && this.riverY <= 4;
+        const bottomDepth = this.river.getRiverDepthAt(this.riverX);
+        const waterDepth = bottomDepth - this.river.skyDepth;
 
         this.debug_text.setText([
             `River Position: (${this.riverX}, ${this.riverY})`,
             `Tile Type: ${tileType}`,
+            `Water Depth: ${waterDepth} tiles`,
             `River Length: ${this.river.length}`,
             canExit ? 'Press B to exit river' : ''
         ]);
