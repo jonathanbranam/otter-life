@@ -6,6 +6,7 @@ export class World {
     width: number;
     height: number;
     tiles: Tile[][];
+    riverPath: { x: number; y: number; width: number }[] = [];
 
     constructor(width: number = 500, height: number = 500) {
         this.width = width;
@@ -62,38 +63,54 @@ export class World {
 
     generateRiver(): void {
         // Generate river path from south to north with meandering
-        const riverPath: { x: number; y: number; width: number }[] = [];
+        this.riverPath = [];
 
         let currentX = Math.floor(this.width * 0.15); // Start 15% from left edge
         let currentY = this.height - 3; // Near bottom, inside edge
+        let lastX = currentX;
 
         while (currentY > 2) {
             // Vary river width between 8 and 16 tiles
             const width = 8 + Math.floor(Math.random() * 9);
-            riverPath.push({ x: currentX, y: currentY, width });
+
+            // Calculate new X position
+            let newX = currentX;
 
             // Move north with some random east/west drift
-            currentY -= 1;
-
             const drift = Math.random();
             if (drift < 0.35 && currentX > 20) {
-                currentX -= 1; // Drift west
+                newX -= 1; // Drift west
             } else if (drift > 0.65 && currentX < this.width - 20) {
-                currentX += 1; // Drift east
+                newX += 1; // Drift east
             }
 
             // Occasionally make bigger turns
             if (Math.random() < 0.15) {
                 const bigTurn = Math.random();
                 if (bigTurn < 0.5 && currentX > 30) {
-                    currentX -= Math.floor(Math.random() * 5) + 2;
+                    newX -= Math.floor(Math.random() * 5) + 2;
                 } else if (currentX < this.width - 30) {
-                    currentX += Math.floor(Math.random() * 5) + 2;
+                    newX += Math.floor(Math.random() * 5) + 2;
                 }
             }
 
             // Keep within bounds
-            currentX = Math.max(20, Math.min(this.width - 20, currentX));
+            newX = Math.max(20, Math.min(this.width - 20, newX));
+
+            // Fill in all points between lastX and newX to ensure continuity
+            if (lastX !== newX) {
+                const step = lastX < newX ? 1 : -1;
+                for (let x = lastX; x !== newX; x += step) {
+                    this.riverPath.push({ x, y: currentY, width });
+                }
+            }
+
+            // Add the current point
+            this.riverPath.push({ x: newX, y: currentY, width });
+
+            lastX = newX;
+            currentX = newX;
+            currentY -= 1;
         }
 
         // Now process every tile in the world based on distance to river path
@@ -112,7 +129,7 @@ export class World {
                 let minDistance = Infinity;
                 let nearestWidth = 0;
 
-                for (const point of riverPath) {
+                for (const point of this.riverPath) {
                     const dx = tx - point.x;
                     const dy = ty - point.y;
                     const distance = Math.sqrt(dx * dx + dy * dy);
