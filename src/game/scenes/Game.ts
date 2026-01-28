@@ -6,6 +6,8 @@ export class Game extends Scene
     camera: Phaser.Cameras.Scene2D.Camera;
     background: Phaser.GameObjects.Image;
     msg_text : Phaser.GameObjects.Text;
+    quit_text : Phaser.GameObjects.Text;
+    quit_bg : Phaser.GameObjects.Rectangle;
     grid: Phaser.GameObjects.Graphics;
     showGrid: boolean = false;
 
@@ -16,34 +18,83 @@ export class Game extends Scene
 
     create ()
     {
+        this.setupCamera();
+        this.setupBackground();
+        this.setupTitle();
+        this.setupQuitButton();
+        this.setupGrid();
+        this.setupKeyboardControls();
+    }
+
+    setupCamera ()
+    {
         this.camera = this.cameras.main;
         this.camera.setBackgroundColor(0x00ff00);
+    }
 
+    setupBackground ()
+    {
         this.background = this.add.image(SCREEN_CENTER_X, SCREEN_CENTER_Y, 'background');
         this.background.setAlpha(0.5);
+    }
 
-        this.msg_text = this.add.text(SCREEN_WIDTH - 130, 40, "Otter's Life", {
+    setupTitle ()
+    {
+        this.msg_text = this.add.text(SCREEN_WIDTH - 10, 40, "Otter's Life", {
             fontFamily: 'Arial', fontSize: 38, color: '#ffffff',
             stroke: '#000000', strokeThickness: 4,
+            align: 'right'
+        });
+        this.msg_text.setOrigin(1, 0.5);
+    }
+
+    setupQuitButton ()
+    {
+        const buttonX = SCREEN_WIDTH - 10;
+        const buttonY = 90;
+
+        // Create background rectangle
+        this.quit_bg = this.add.rectangle(buttonX, buttonY, 80, 40, 0x000000, 0.3);
+        this.quit_bg.setOrigin(1, 0.5);
+        this.quit_bg.setInteractive({ useHandCursor: true });
+
+        // Create centered text within the rectangle
+        this.quit_text = this.add.text(buttonX - 40, buttonY, 'Quit', {
+            fontFamily: 'Arial', fontSize: 24, color: '#ffffff',
+            stroke: '#000000', strokeThickness: 3,
             align: 'center'
         });
-        this.msg_text.setOrigin(0.5);
+        this.quit_text.setOrigin(0.5);
 
-        // Create grid graphics
+        // Hover effects
+        this.quit_bg.on('pointerover', () => {
+            this.quit_bg.setFillStyle(0xffffff, 0.4);
+            this.quit_text.setStyle({ color: '#ffff00' });
+        });
+
+        this.quit_bg.on('pointerout', () => {
+            this.quit_bg.setFillStyle(0x000000, 0.3);
+            this.quit_text.setStyle({ color: '#ffffff' });
+        });
+
+        // Click handler
+        this.quit_bg.on('pointerdown', () => {
+            this.scene.start('GameOver');
+        });
+    }
+
+    setupGrid ()
+    {
         this.grid = this.add.graphics();
-        this.grid.setDepth(1000); // Ensure grid is on top
+        this.grid.setDepth(1000);
         this.updateGrid();
+    }
 
-        // Toggle grid with 'g' key
+    setupKeyboardControls ()
+    {
         this.input.keyboard?.on('keydown-G', () => {
             this.showGrid = !this.showGrid;
             this.updateGrid();
-        });
-
-        this.input.once('pointerdown', () => {
-
-            this.scene.start('GameOver');
-
         });
     }
 
@@ -56,7 +107,7 @@ export class Game extends Scene
         }
 
         const tileSize = 25; // 32x32 tiles means 800/32 = 25 pixels per tile
-        const lineColor = 0xffffff;
+        const lineColor = 0x808080;
         const lineAlpha = 0.2;
 
         this.grid.lineStyle(1, lineColor, lineAlpha);
