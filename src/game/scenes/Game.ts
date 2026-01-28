@@ -1,6 +1,7 @@
 import { Scene } from 'phaser';
-import { SCREEN_WIDTH, SCREEN_HEIGHT, TILE_SIZE } from '../constants';
+import { SCREEN_WIDTH, SCREEN_HEIGHT, TILE_SIZE, WORLD_WIDTH, WORLD_HEIGHT } from '../constants';
 import { Player } from '../entities/Player';
+import { World } from '../world';
 
 export class Game extends Scene
 {
@@ -10,6 +11,7 @@ export class Game extends Scene
     quit_bg : Phaser.GameObjects.Rectangle;
     grid: Phaser.GameObjects.Graphics;
     player: Player | null = null;
+    world: World | null = null;
     showGrid: boolean = false;
 
     constructor ()
@@ -20,6 +22,7 @@ export class Game extends Scene
     create ()
     {
         this.setupCamera();
+        this.setupWorld();
         this.setupTitle();
         this.setupQuitButton();
         this.setupPlayer();
@@ -31,6 +34,13 @@ export class Game extends Scene
     {
         this.camera = this.cameras.main;
         this.camera.setBackgroundColor(0x304030);
+    }
+
+    setupWorld ()
+    {
+        console.log('Generating world...');
+        this.world = new World(WORLD_WIDTH, WORLD_HEIGHT);
+        console.log('World generated successfully');
     }
 
     setupTitle ()
@@ -80,15 +90,40 @@ export class Game extends Scene
 
     setupPlayer ()
     {
-        // Start at tile (12, 12) which is near the center
-        const startTileX = 12;
-        const startTileY = 12;
+        if (!this.world) return;
 
-        // Center player within the tile
+        // Find a suitable starting position near the center of the world
+        let startTileX = Math.floor(WORLD_WIDTH / 2);
+        let startTileY = Math.floor(WORLD_HEIGHT / 2);
+
+        // Find a nearby walkable tile
+        let found = false;
+        for (let radius = 0; radius < 50 && !found; radius++) {
+            for (let dy = -radius; dy <= radius && !found; dy++) {
+                for (let dx = -radius; dx <= radius && !found; dx++) {
+                    const tx = startTileX + dx;
+                    const ty = startTileY + dy;
+
+                    if (this.world.canMoveTo(tx, ty, false)) {
+                        startTileX = tx;
+                        startTileY = ty;
+                        found = true;
+                    }
+                }
+            }
+        }
+
+        // Center player within the tile (in screen coordinates for now)
+        // We'll need to update this when we add camera following
         const centerX = startTileX * TILE_SIZE + TILE_SIZE / 2;
         const centerY = startTileY * TILE_SIZE + TILE_SIZE / 2;
 
         this.player = new Player(this, centerX, centerY);
+
+        // Occupy the tile in the world
+        this.world.occupyTile(startTileX, startTileY, this.player);
+
+        console.log(`Player spawned at tile (${startTileX}, ${startTileY})`);
     }
 
     setupGrid ()
