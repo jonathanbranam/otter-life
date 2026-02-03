@@ -1,7 +1,7 @@
 import { Boot } from './scenes/Boot';
 import { GameOver } from './scenes/GameOver';
-import { Game as MainGame } from './scenes/Game';
-import { GameRiver } from './scenes/GameRiver';
+import { WorldScene } from './scenes/WorldScene';
+import { RiverScene } from './scenes/RiverScene';
 import { MainMenu } from './scenes/MainMenu';
 import { AUTO, Game } from 'phaser';
 import { Preloader } from './scenes/Preloader';
@@ -23,8 +23,8 @@ const config: Phaser.Types.Core.GameConfig = {
         Boot,
         Preloader,
         MainMenu,
-        MainGame,
-        GameRiver,
+        WorldScene,
+        RiverScene,
         GameOver
     ]
 };

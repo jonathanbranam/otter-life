@@ -4,7 +4,7 @@ import { Player } from '../entities/Player';
 import { World, TileType } from '../world';
 import { TileRenderer } from '../rendering/TileRenderer';
 
-export class Game extends Scene
+export class WorldScene extends Scene
 {
     camera: Phaser.Cameras.Scene2D.Camera;
     msg_text : Phaser.GameObjects.Text;
@@ -23,7 +23,7 @@ export class Game extends Scene
 
     constructor ()
     {
-        super('Game');
+        super('WorldScene');
     }
 
     init(data?: { exitRiver?: boolean; riverIndex?: number }) {
@@ -405,20 +405,20 @@ export class Game extends Scene
 
         console.log(`Entering river at world tile (${tileX}, ${tileY}), river index: ${riverIndex}`);
 
-        const riverScene = this.scene.get('GameRiver');
+        const riverScene = this.scene.get('RiverScene');
 
         // Sleep this scene
         this.scene.sleep();
 
         // Check if river scene exists and is sleeping, or needs to be launched
-        if (riverScene && this.scene.isSleeping('GameRiver')) {
+        if (riverScene && this.scene.isSleeping('RiverScene')) {
             // Wake existing river scene with new entry data
-            this.scene.wake('GameRiver', {
+            this.scene.wake('RiverScene', {
                 riverIndex: riverIndex
             });
         } else {
             // Launch river scene for the first time
-            this.scene.launch('GameRiver', {
+            this.scene.launch('RiverScene', {
                 riverIndex: riverIndex
             });
         }
