@@ -10,7 +10,7 @@ const RIVER_TILE_COLORS = {
     [RiverTileType.RIVER_BOTTOM]: 0x8B7355 // Brown bottom
 };
 
-export class GameRiver extends Scene {
+export class RiverScene extends Scene {
     camera: Phaser.Cameras.Scene2D.Camera;
     player: Player | null = null;
     river: River | null = null;
@@ -25,7 +25,7 @@ export class GameRiver extends Scene {
     entryRiverIndex: number = 0;
 
     constructor() {
-        super('GameRiver');
+        super('RiverScene');
     }
 
     init(data: { riverIndex: number }) {
@@ -152,7 +152,7 @@ export class GameRiver extends Scene {
     exitRiver() {
         // Sleep this scene and wake the Game scene with exit river index
         this.scene.sleep();
-        this.scene.wake('Game', {
+        this.scene.wake('WorldScene', {
             exitRiver: true,
             riverIndex: this.riverX
         });

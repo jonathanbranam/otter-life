@@ -49,6 +49,6 @@ export class Preloader extends Scene
         console.log('World initialized and stored in registry');
 
         //  Move to the MainMenu. You could also swap this for a Scene Transition, such as a camera fade.
-        this.scene.start('Game');
+        this.scene.start('WorldScene');
     }
 }

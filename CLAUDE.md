@@ -24,18 +24,18 @@ Hot-reload is active - changes to TypeScript files in `src/` automatically recom
 
 **Scene Sequence:**
 ```
-Boot → Preloader → Game (overworld) ⟷ GameRiver (side-scrolling) → GameOver
+Boot → Preloader → WorldScene (overworld) ⟷ RiverScene (side-scrolling) → GameOver
 ```
 
 **Dual-World System:**
 The game uses a sleep/wake pattern to maintain state across two parallel worlds:
 
-- **Game scene** (`src/game/scenes/Game.ts`): 500×500 tile overworld with procedurally-generated river
-- **GameRiver scene** (`src/game/scenes/GameRiver.ts`): Side-scrolling river view (riverLength × 32 depth)
+- **WorldScene** (`src/game/scenes/WorldScene.ts`): 500×500 tile overworld with procedurally-generated river
+- **RiverScene** (`src/game/scenes/RiverScene.ts`): Side-scrolling river view (riverLength × 32 depth)
 
 When transitioning:
-- Entering river: Game scene **sleeps**, GameRiver **wakes/launches**
-- Exiting river: GameRiver **sleeps**, Game scene **wakes**
+- Entering river: WorldScene **sleeps**, RiverScene **wakes/launches**
+- Exiting river: RiverScene **sleeps**, WorldScene **wakes**
 - Both scenes preserve full state (no `create()` re-runs)
 
 **Event-Based Wake Handlers:**
@@ -52,7 +52,7 @@ Both scenes use `this.events.on(Phaser.Scenes.Events.WAKE, ...)` to handle repos
 
 **Tile Assignment by Distance:**
 All tiles assigned type based on distance to nearest riverPath point:
-- ≤30% width: `RIVER_DEEP` (can dive into GameRiver scene)
+- ≤30% width: `RIVER_DEEP` (can dive into RiverScene)
 - ≤70% width: `RIVER_SHALLOW` (swimmable)
 - ≤width+1: `SHORELINE` (walkable)
 - ≤width+2.5: `MUD` (walkable, harvestable)
@@ -61,7 +61,7 @@ All tiles assigned type based on distance to nearest riverPath point:
 - Edges: `BOULDER/CLIFF/ROCK` (blocking)
 
 **River Depth Profile** (`src/game/world/River.ts:69-121`):
-The GameRiver scene has varying depth at each x position:
+The RiverScene has varying depth at each x position:
 - `bottomDepth[x]`: Where river bottom starts (4-31 tiles deep)
 - Top 3 tiles always `SKY`
 - Entry/exit zones (3.3% of length) ease depth in/out
@@ -72,26 +72,26 @@ The GameRiver scene has varying depth at each x position:
 **Entry:**
 1. Player stands on `RIVER_DEEP` tile and presses 'b'
 2. `world.findRiverPathIndex(tileX, tileY)` finds closest riverPath point
-3. Player transferred to GameRiver at x=riverIndex, y=1
+3. Player transferred to RiverScene at x=riverIndex, y=1
 
 **Exit:**
 1. Player swims to y=3-4 (near surface) and presses 'b'
-2. Returns to Game scene at `world.getRiverPathPosition(riverIndex)`
+2. Returns to WorldScene at `world.getRiverPathPosition(riverIndex)`
 
 ### Rendering System
 
 **TileRenderer** (`src/game/rendering/TileRenderer.ts`):
 - Immediate-mode rendering using Phaser Graphics API (no sprite assets)
 - **Viewport culling**: Only renders visible tiles + 4-tile buffer
-- Called every frame in `Game.update()`
+- Called every frame in `WorldScene.update()`
 - Each tile: 32×32px filled rectangle with 0.1 alpha black border
 
-**GameRiver Rendering** (`src/game/scenes/GameRiver.ts:160-192`):
+**RiverScene Rendering** (`src/game/scenes/RiverScene.ts:160-192`):
 Similar viewport culling but renders 3 tile types: `SKY` (white), `WATER` (blue), `RIVER_BOTTOM` (brown).
 
 ### Player Movement
 
-**Grid-Based Turn-Based System** (`src/game/scenes/Game.ts:300-332`):
+**Grid-Based Turn-Based System** (`src/game/scenes/WorldScene.ts:300-332`):
 1. Input (arrow keys, WASD) triggers `movePlayer(dx, dy)`
 2. Calculate new tile position
 3. Check `world.canMoveTo(newX, newY, isSwimming)`
