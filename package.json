@@ -6,7 +6,8 @@
         "dev": "node log.js dev & webpack-dev-server --config webpack/config.dev.js --open",
         "build": "node log.js build & webpack --config webpack/config.prod.js",
         "dev-nolog": "webpack-dev-server --config webpack/config.dev.js --open",
-        "build-nolog": "webpack --config webpack/config.prod.js"
+        "build-nolog": "webpack --config webpack/config.prod.js",
+        "cli": "npx tsx src/cli/main.ts"
     },
     "repository": {
         "type": "git",
@@ -30,6 +31,7 @@
         "raw-loader": "^4.0.2",
         "terser-webpack-plugin": "^5.3.14",
         "ts-loader": "^9.5.2",
+        "tsx": "^4.21.0",
         "typescript": "^5.4.5",
         "webpack": "^5.99.6",
         "webpack-cli": "^6.0.1",

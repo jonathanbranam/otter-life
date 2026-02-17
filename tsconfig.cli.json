@@ -1,0 +1,26 @@
+{
+    "compilerOptions": {
+        "target": "ES2020",
+        "module": "commonjs",
+        "moduleResolution": "node",
+        "outDir": "./dist-cli/",
+        "lib": ["ES2020"],
+        "skipLibCheck": true,
+        "resolveJsonModule": true,
+        "strict": true,
+        "strictPropertyInitialization": false,
+        "noUnusedLocals": false,
+        "noUnusedParameters": false,
+        "noFallthroughCasesInSwitch": true,
+        "esModuleInterop": true
+    },
+    "include": [
+        "src/cli/**/*",
+        "src/game/simulation/**/*",
+        "src/game/world/**/*",
+        "src/game/constants.ts"
+    ],
+    "exclude": [
+        "node_modules"
+    ]
+}
