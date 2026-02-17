@@ -1,8 +1,9 @@
 import { Scene } from 'phaser';
 import { SCREEN_WIDTH, SCREEN_HEIGHT, TILE_SIZE, WORLD_WIDTH, WORLD_HEIGHT } from '../constants';
 import { Player } from '../entities/Player';
-import { World, TileType } from '../world';
+import { TileType } from '../world';
 import { TileRenderer } from '../rendering/TileRenderer';
+import { GameSimulation } from '../simulation/GameSimulation';
 
 export class WorldScene extends Scene
 {
@@ -14,72 +15,19 @@ export class WorldScene extends Scene
     grid: Phaser.GameObjects.Graphics;
     riverPathGraphics: Phaser.GameObjects.Graphics;
     player: Player | null = null;
-    world: World | null = null;
+    sim: GameSimulation | null = null;
     tileRenderer: TileRenderer | null = null;
     showGrid: boolean = false;
     showRiverPath: boolean = false;
-    playerTileX: number = 0;
-    playerTileY: number = 0;
 
     constructor ()
     {
         super('WorldScene');
     }
 
-    init(data?: { exitRiver?: boolean; riverIndex?: number }) {
-        // This is only called when scene starts fresh (not when waking from sleep)
-        if (data?.exitRiver && data.riverIndex !== undefined) {
-            // Returning from river - will position player at exit point
-            this.handleRiverExit(data.riverIndex);
-        }
-    }
-
-    setupWakeHandler ()
-    {
-        this.events.on(Phaser.Scenes.Events.WAKE, (_sys: Phaser.Scenes.Systems, data?: { exitRiver?: boolean; riverIndex?: number }) => {
-            console.log("Game wake.");
-            // This is called when scene wakes from sleep
-            if (data?.exitRiver && data.riverIndex !== undefined && this.player && this.world) {
-                // Returning from river - reposition player at exit point
-                const exitPos = this.world.getRiverPathPosition(data.riverIndex);
-                if (exitPos) {
-                    // Vacate current tile
-                    this.world.vacateTile(this.playerTileX, this.playerTileY);
-
-                    // Update player position
-                    this.playerTileX = exitPos.x;
-                    this.playerTileY = exitPos.y;
-
-                    // Move player sprite to new position
-                    const centerX = exitPos.x * TILE_SIZE + TILE_SIZE / 2;
-                    const centerY = exitPos.y * TILE_SIZE + TILE_SIZE / 2;
-
-                    if (this.player.belly) {
-                        this.player.belly.x = centerX;
-                        this.player.belly.y = centerY;
-                    }
-                    if (this.player.head) {
-                        this.player.head.x = centerX;
-                        this.player.head.y = centerY - 8;
-                    }
-
-                    // Occupy new tile
-                    this.world.occupyTile(exitPos.x, exitPos.y, this.player);
-
-                    // Update swimming state
-                    const exitTile = this.world.getTile(exitPos.x, exitPos.y);
-                    if (exitTile) {
-                        this.player.isSwimming = exitTile.isWaterTile();
-                    }
-
-                    console.log(`Player exited river at tile (${exitPos.x}, ${exitPos.y})`);
-                }
-            }
-        });
-    }
-
     create ()
     {
+        this.setupSimulation();
         this.setupCamera();
         this.setupWorld();
         this.setupTitle();
@@ -91,10 +39,29 @@ export class WorldScene extends Scene
         this.setupWakeHandler();
     }
 
-    handleRiverExit(riverIndex: number) {
-        // This will be used during player setup to position them at the exit point
-        // Store the exit data for use in setupPlayer
-        this.registry.set('riverExitIndex', riverIndex);
+    setupSimulation ()
+    {
+        const sim = this.registry.get('simulation') as GameSimulation | null;
+        if (!sim) {
+            throw new Error('GameSimulation not initialized in Preloader');
+        }
+        this.sim = sim;
+    }
+
+    setupWakeHandler ()
+    {
+        this.events.on(Phaser.Scenes.Events.WAKE, (_sys: Phaser.Scenes.Systems, data?: { exitRiver?: boolean; riverIndex?: number }) => {
+            console.log("Game wake.");
+            if (data?.exitRiver && data.riverIndex !== undefined && this.sim && this.player) {
+                // Simulation handles all state updates
+                this.sim.handleOverworldReturn(data.riverIndex);
+
+                // Sync renderer from simulation state
+                this.player.syncFromState();
+
+                console.log(`Player exited river at tile (${this.sim.player.tileX}, ${this.sim.player.tileY})`);
+            }
+        });
     }
 
     setupCamera ()
@@ -108,25 +75,19 @@ export class WorldScene extends Scene
         this.camera.setBounds(0, 0, worldPixelWidth, worldPixelHeight);
 
         // Position camera in northwest (near top-left of world)
-        // Leave some margin from the edge
-        const startCameraX = 5 * TILE_SIZE; // 5 tiles from left edge
-        const startCameraY = 5 * TILE_SIZE; // 5 tiles from top edge
+        const startCameraX = 5 * TILE_SIZE;
+        const startCameraY = 5 * TILE_SIZE;
         this.camera.scrollX = startCameraX;
         this.camera.scrollY = startCameraY;
     }
 
     setupWorld ()
     {
-        // Retrieve World from registry (created in Preloader)
-        const world = this.registry.get('world') as World | null;
-        if (!world) {
-            throw new Error('World not initialized in Preloader');
-        }
-        this.world = world;
-        console.log('World retrieved from registry');
+        if (!this.sim) return;
 
-        // Create tile renderer
-        this.tileRenderer = new TileRenderer(this, this.world);
+        // Create tile renderer using the world from simulation
+        this.tileRenderer = new TileRenderer(this, this.sim.world);
+        console.log('World retrieved from simulation');
     }
 
     setupTitle ()
@@ -137,7 +98,7 @@ export class WorldScene extends Scene
             align: 'right'
         });
         this.msg_text.setOrigin(1, 0.5);
-        this.msg_text.setScrollFactor(0); // Fixed to camera
+        this.msg_text.setScrollFactor(0);
         this.msg_text.setDepth(2000);
     }
 
@@ -146,24 +107,21 @@ export class WorldScene extends Scene
         const buttonX = SCREEN_WIDTH - 10;
         const buttonY = 90;
 
-        // Create background rectangle
         this.quit_bg = this.add.rectangle(buttonX, buttonY, 80, 40, 0x000000, 0.3);
         this.quit_bg.setOrigin(1, 0.5);
         this.quit_bg.setInteractive({ useHandCursor: true });
-        this.quit_bg.setScrollFactor(0); // Fixed to camera
+        this.quit_bg.setScrollFactor(0);
         this.quit_bg.setDepth(2000);
 
-        // Create centered text within the rectangle
         this.quit_text = this.add.text(buttonX - 40, buttonY, 'Quit', {
             fontFamily: 'Arial', fontSize: 24, color: '#ffffff',
             stroke: '#000000', strokeThickness: 3,
             align: 'center'
         });
         this.quit_text.setOrigin(0.5);
-        this.quit_text.setScrollFactor(0); // Fixed to camera
+        this.quit_text.setScrollFactor(0);
         this.quit_text.setDepth(2001);
 
-        // Hover effects
         this.quit_bg.on('pointerover', () => {
             this.quit_bg.setFillStyle(0xffffff, 0.4);
             this.quit_text.setStyle({ color: '#ffff00' });
@@ -174,7 +132,6 @@ export class WorldScene extends Scene
             this.quit_text.setStyle({ color: '#ffffff' });
         });
 
-        // Click handler
         this.quit_bg.on('pointerdown', () => {
             this.scene.start('GameOver');
         });
@@ -187,110 +144,38 @@ export class WorldScene extends Scene
             stroke: '#000000', strokeThickness: 2,
             align: 'left'
         });
-        this.debug_text.setScrollFactor(0); // Fixed to camera
+        this.debug_text.setScrollFactor(0);
         this.debug_text.setDepth(2000);
     }
 
     setupPlayer ()
     {
-        if (!this.world) return;
+        if (!this.sim) return;
 
-        let startTileX: number;
-        let startTileY: number;
+        // Use simulation to find spawn position and initialize player state
+        const spawnPos = this.sim.findSpawnPosition();
+        this.sim.spawnPlayer(spawnPos.x, spawnPos.y);
 
-        // Check if returning from river
-        const riverExitIndex = this.registry.get('riverExitIndex');
-        if (riverExitIndex !== undefined) {
-            // Position player at river exit point
-            const exitPos = this.world.getRiverPathPosition(riverExitIndex);
-            if (exitPos) {
-                startTileX = exitPos.x;
-                startTileY = exitPos.y;
-                console.log(`Player exiting river at tile (${startTileX}, ${startTileY})`);
-            } else {
-                // Fallback to camera center if exit position not found
-                startTileX = Math.floor((this.camera.scrollX + SCREEN_WIDTH / 2) / TILE_SIZE);
-                startTileY = Math.floor((this.camera.scrollY + SCREEN_HEIGHT / 2) / TILE_SIZE);
-            }
-            // Clear the registry
-            this.registry.remove('riverExitIndex');
+        console.log(`Starting at tile (${spawnPos.x}, ${spawnPos.y})`);
 
-            // Position camera at exit location
-            this.camera.scrollX = startTileX * TILE_SIZE - SCREEN_WIDTH / 2;
-            this.camera.scrollY = startTileY * TILE_SIZE - SCREEN_HEIGHT / 2;
-        } else {
-            // Normal spawn - Position near north end of river
-            if (this.world.riverPath.length > 0) {
-                // Get a point 10-20 tiles from the north end
-                const tilesFromNorth = 10 + Math.floor(Math.random() * 11); // Random between 10-20
-                const riverIndex = Math.max(0, this.world.riverPath.length - tilesFromNorth);
-                const riverPoint = this.world.riverPath[riverIndex];
+        // Position camera at starting location
+        this.camera.scrollX = spawnPos.x * TILE_SIZE - SCREEN_WIDTH / 2;
+        this.camera.scrollY = spawnPos.y * TILE_SIZE - SCREEN_HEIGHT / 2;
 
-                // Start a few tiles to the side of the river
-                startTileX = riverPoint.x + 5;
-                startTileY = riverPoint.y;
-
-                console.log(`Starting near north end of river at index ${riverIndex}, tile (${startTileX}, ${startTileY})`);
-            } else {
-                // Fallback if no river
-                startTileX = Math.floor((this.camera.scrollX + SCREEN_WIDTH / 2) / TILE_SIZE);
-                startTileY = Math.floor((this.camera.scrollY + SCREEN_HEIGHT / 2) / TILE_SIZE);
-            }
-
-            // Find a walkable tile near the target position
-            let found = false;
-            for (let radius = 0; radius < 50 && !found; radius++) {
-                for (let dy = -radius; dy <= radius && !found; dy++) {
-                    for (let dx = -radius; dx <= radius && !found; dx++) {
-                        const tx = startTileX + dx;
-                        const ty = startTileY + dy;
-
-                        if (this.world.canMoveTo(tx, ty, false)) {
-                            startTileX = tx;
-                            startTileY = ty;
-                            found = true;
-                        }
-                    }
-                }
-            }
-
-            // Position camera at starting location
-            this.camera.scrollX = startTileX * TILE_SIZE - SCREEN_WIDTH / 2;
-            this.camera.scrollY = startTileY * TILE_SIZE - SCREEN_HEIGHT / 2;
-        }
-
-        // Center player within the tile (in world pixel coordinates)
-        const centerX = startTileX * TILE_SIZE + TILE_SIZE / 2;
-        const centerY = startTileY * TILE_SIZE + TILE_SIZE / 2;
-
-        this.player = new Player(this, centerX, centerY);
-
-        // Track player tile position
-        this.playerTileX = startTileX;
-        this.playerTileY = startTileY;
-
-        // Occupy the tile in the world
-        this.world.occupyTile(startTileX, startTileY, this.player);
-
-        // Set initial swimming state
-        const startTile = this.world.getTile(startTileX, startTileY);
-        if (startTile) {
-            this.player.isSwimming = startTile.isWaterTile();
-        }
+        // Create renderer that reads from simulation's PlayerState
+        this.player = new Player(this, this.sim.player);
 
         // Set up camera to follow player's belly
         if (this.player.belly) {
-            // Calculate deadzone: 8 tiles from each edge
             const deadzoneMargin = 8 * TILE_SIZE;
             const deadzoneWidth = SCREEN_WIDTH - (2 * deadzoneMargin);
             const deadzoneHeight = SCREEN_HEIGHT - (2 * deadzoneMargin);
 
-            // Set up camera following with deadzone
             this.camera.startFollow(this.player.belly, false, 0.1, 0.1);
             this.camera.setDeadzone(deadzoneWidth, deadzoneHeight);
         }
 
-        console.log(`Player spawned at tile (${startTileX}, ${startTileY}) pixel (${centerX}, ${centerY})`);
+        console.log(`Player spawned at tile (${spawnPos.x}, ${spawnPos.y})`);
     }
 
     setupGrid ()
@@ -307,103 +192,41 @@ export class WorldScene extends Scene
         const keyboard = this.input.keyboard;
         if (!keyboard) return;
 
-        // Toggle grid and river path with 'g' key
         keyboard.on('keydown-G', () => {
             this.showGrid = !this.showGrid;
             this.showRiverPath = !this.showRiverPath;
         });
 
-        // Enter river with 'b' key
         keyboard.on('keydown-B', () => {
             this.tryEnterRiver();
         });
 
-        // Arrow keys for player movement
-        keyboard.on('keydown-UP', () => {
-            this.movePlayer(0, -1);
-        });
+        keyboard.on('keydown-UP', () => this.movePlayer(0, -1));
+        keyboard.on('keydown-DOWN', () => this.movePlayer(0, 1));
+        keyboard.on('keydown-LEFT', () => this.movePlayer(-1, 0));
+        keyboard.on('keydown-RIGHT', () => this.movePlayer(1, 0));
 
-        keyboard.on('keydown-DOWN', () => {
-            this.movePlayer(0, 1);
-        });
-
-        keyboard.on('keydown-LEFT', () => {
-            this.movePlayer(-1, 0);
-        });
-
-        keyboard.on('keydown-RIGHT', () => {
-            this.movePlayer(1, 0);
-        });
-
-        // WASD keys for player movement
-        keyboard.on('keydown-W', () => {
-            this.movePlayer(0, -1);
-        });
-
-        keyboard.on('keydown-S', () => {
-            this.movePlayer(0, 1);
-        });
-
-        keyboard.on('keydown-A', () => {
-            this.movePlayer(-1, 0);
-        });
-
-        keyboard.on('keydown-D', () => {
-            this.movePlayer(1, 0);
-        });
+        keyboard.on('keydown-W', () => this.movePlayer(0, -1));
+        keyboard.on('keydown-S', () => this.movePlayer(0, 1));
+        keyboard.on('keydown-A', () => this.movePlayer(-1, 0));
+        keyboard.on('keydown-D', () => this.movePlayer(1, 0));
     }
 
     movePlayer(tileDx: number, tileDy: number): void {
-        if (!this.player || !this.world) return;
+        if (!this.sim || !this.player) return;
 
-        // Calculate new tile position
-        const newTileX = this.playerTileX + tileDx;
-        const newTileY = this.playerTileY + tileDy;
-
-        // Check if the new tile is walkable
-        if (!this.world.canMoveTo(newTileX, newTileY, this.player.isSwimming)) {
-            return; // Can't move there
-        }
-
-        // Vacate current tile
-        this.world.vacateTile(this.playerTileX, this.playerTileY);
-
-        // Move player in pixel coordinates
-        const pixelDx = tileDx * TILE_SIZE;
-        const pixelDy = tileDy * TILE_SIZE;
-        this.player.move(pixelDx, pixelDy);
-
-        // Update tracked tile position
-        this.playerTileX = newTileX;
-        this.playerTileY = newTileY;
-
-        // Occupy new tile
-        this.world.occupyTile(newTileX, newTileY, this.player);
-
-        // Update swimming state based on tile type
-        const newTile = this.world.getTile(newTileX, newTileY);
-        if (newTile) {
-            this.player.isSwimming = newTile.isWaterTile();
+        if (this.sim.moveOverworld(tileDx, tileDy)) {
+            this.player.syncFromState();
         }
     }
 
     tryEnterRiver(): void {
-        if (!this.player || !this.world) return;
+        if (!this.sim) return;
 
-        // Check if player is on a deep river tile
-        const currentTile = this.world.getTile(this.playerTileX, this.playerTileY);
-        if (currentTile && currentTile.type === TileType.RIVER_DEEP) {
-            this.enterRiver(this.playerTileX, this.playerTileY);
-        }
-    }
+        const result = this.sim.tryEnterRiver();
+        if (!result) return;
 
-    enterRiver(tileX: number, tileY: number): void {
-        if (!this.world || !this.world.river) return;
-
-        // Find the river path index closest to this tile
-        const riverIndex = this.world.findRiverPathIndex(tileX, tileY);
-
-        console.log(`Entering river at world tile (${tileX}, ${tileY}), river index: ${riverIndex}`);
+        console.log(`Entering river at world tile (${this.sim.player.tileX}, ${this.sim.player.tileY}), river index: ${result.riverIndex}`);
 
         const riverScene = this.scene.get('RiverScene');
 
@@ -412,21 +235,18 @@ export class WorldScene extends Scene
 
         // Check if river scene exists and is sleeping, or needs to be launched
         if (riverScene && this.scene.isSleeping('RiverScene')) {
-            // Wake existing river scene with new entry data
             this.scene.wake('RiverScene', {
-                riverIndex: riverIndex
+                riverIndex: result.riverIndex
             });
         } else {
-            // Launch river scene for the first time
             this.scene.launch('RiverScene', {
-                riverIndex: riverIndex
+                riverIndex: result.riverIndex
             });
         }
     }
 
     update ()
     {
-        // Render tiles based on camera position
         if (this.tileRenderer && this.camera) {
             this.tileRenderer.render(
                 this.camera.scrollX,
@@ -436,37 +256,33 @@ export class WorldScene extends Scene
             );
         }
 
-        // Update debug display
         this.updateDebugDisplay();
-
-        // Update grid overlay
         this.updateGrid();
-
-        // Update river path overlay
         this.updateRiverPath();
     }
 
     updateDebugDisplay ()
     {
-        if (!this.debug_text || !this.world) return;
+        if (!this.debug_text || !this.sim) return;
 
-        const tile = this.world.getTile(this.playerTileX, this.playerTileY);
+        const playerTileX = this.sim.player.tileX;
+        const playerTileY = this.sim.player.tileY;
+        const tile = this.sim.world.getTile(playerTileX, playerTileY);
         const tileType = tile ? tile.type : 'unknown';
-        const isSwimming = this.player?.isSwimming ? ' (swimming)' : '';
+        const isSwimming = this.sim.player.isSwimming ? ' (swimming)' : '';
         const canDive = tile?.type === TileType.RIVER_DEEP;
 
-        // Check if player is standing on a river path point
         let riverPathIndex = -1;
-        for (let i = 0; i < this.world.riverPath.length; i++) {
-            const point = this.world.riverPath[i];
-            if (point.x === this.playerTileX && point.y === this.playerTileY) {
+        for (let i = 0; i < this.sim.world.riverPath.length; i++) {
+            const point = this.sim.world.riverPath[i];
+            if (point.x === playerTileX && point.y === playerTileY) {
                 riverPathIndex = i;
                 break;
             }
         }
 
         const debugLines = [
-            `Tile: (${this.playerTileX}, ${this.playerTileY})`,
+            `Tile: (${playerTileX}, ${playerTileY})`,
             `Type: ${tileType}${isSwimming}`,
         ];
 
@@ -494,13 +310,11 @@ export class WorldScene extends Scene
 
         this.grid.lineStyle(1, lineColor, lineAlpha);
 
-        // Get camera viewport in world coordinates
         const cameraLeft = this.camera.scrollX;
         const cameraTop = this.camera.scrollY;
         const cameraRight = cameraLeft + SCREEN_WIDTH;
         const cameraBottom = cameraTop + SCREEN_HEIGHT;
 
-        // Extend grid slightly beyond viewport
         const startX = Math.floor(cameraLeft / TILE_SIZE) * TILE_SIZE;
         const startY = Math.floor(cameraTop / TILE_SIZE) * TILE_SIZE;
         const endX = Math.ceil(cameraRight / TILE_SIZE) * TILE_SIZE;
@@ -508,13 +322,11 @@ export class WorldScene extends Scene
 
         this.grid.lineStyle(1, lineColor, lineAlpha);
 
-        // Draw vertical lines
         for (let x = startX; x <= endX; x += TILE_SIZE) {
             this.grid.moveTo(x, startY);
             this.grid.lineTo(x, endY);
         }
 
-        // Draw horizontal lines
         for (let y = startY; y <= endY; y += TILE_SIZE) {
             this.grid.moveTo(startX, y);
             this.grid.lineTo(endX, y);
@@ -527,39 +339,36 @@ export class WorldScene extends Scene
     {
         this.riverPathGraphics.clear();
 
-        if (!this.showRiverPath || !this.world) {
+        if (!this.showRiverPath || !this.sim) {
             return;
         }
 
-        const pathColor = 0xff00ff; // Magenta for visibility
+        const pathColor = 0xff00ff;
         const pathAlpha = 0.7;
         const dotRadius = 3;
 
         this.riverPathGraphics.fillStyle(pathColor, pathAlpha);
 
-        // Draw each point in the river path
-        for (let i = 0; i < this.world.riverPath.length; i++) {
-            const point = this.world.riverPath[i];
+        for (let i = 0; i < this.sim.world.riverPath.length; i++) {
+            const point = this.sim.world.riverPath[i];
             const pixelX = point.x * TILE_SIZE + TILE_SIZE / 2;
             const pixelY = point.y * TILE_SIZE + TILE_SIZE / 2;
 
-            // Draw a circle at each river path point
             this.riverPathGraphics.fillCircle(pixelX, pixelY, dotRadius);
         }
 
-        // Draw lines connecting the points
-        if (this.world.riverPath.length > 1) {
+        if (this.sim.world.riverPath.length > 1) {
             this.riverPathGraphics.lineStyle(2, pathColor, pathAlpha * 0.5);
 
-            const firstPoint = this.world.riverPath[0];
+            const firstPoint = this.sim.world.riverPath[0];
             this.riverPathGraphics.beginPath();
             this.riverPathGraphics.moveTo(
                 firstPoint.x * TILE_SIZE + TILE_SIZE / 2,
                 firstPoint.y * TILE_SIZE + TILE_SIZE / 2
             );
 
-            for (let i = 1; i < this.world.riverPath.length; i++) {
-                const point = this.world.riverPath[i];
+            for (let i = 1; i < this.sim.world.riverPath.length; i++) {
+                const point = this.sim.world.riverPath[i];
                 this.riverPathGraphics.lineTo(
                     point.x * TILE_SIZE + TILE_SIZE / 2,
                     point.y * TILE_SIZE + TILE_SIZE / 2
