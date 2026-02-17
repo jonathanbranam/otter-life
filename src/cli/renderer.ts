@@ -49,10 +49,15 @@ function renderOverworld(sim: GameSimulation): string {
     lines.push(`Tile: ${tileType}${swimming}${canDive}  Facing: ${sim.player.direction}`);
     lines.push('');
 
+    // Clamp viewport to world bounds
+    const minX = Math.max(0, cx - VIEW_RADIUS);
+    const maxX = Math.min(world.width - 1, cx + VIEW_RADIUS);
+    const minY = Math.max(0, cy - VIEW_RADIUS);
+    const maxY = Math.min(world.height - 1, cy + VIEW_RADIUS);
+
     // Column numbers header
-    const startX = cx - VIEW_RADIUS;
     let colHeader = '     ';
-    for (let x = startX; x <= cx + VIEW_RADIUS; x++) {
+    for (let x = minX; x <= maxX; x++) {
         if (x % 5 === 0) {
             const label = Math.abs(x).toString();
             colHeader += label.slice(-1);
@@ -63,16 +68,12 @@ function renderOverworld(sim: GameSimulation): string {
     lines.push(colHeader);
 
     // Grid
-    for (let dy = -VIEW_RADIUS; dy <= VIEW_RADIUS; dy++) {
-        const y = cy + dy;
-        // Row label
+    for (let y = minY; y <= maxY; y++) {
         const rowLabel = y.toString().padStart(4, ' ') + ' ';
         let row = rowLabel;
 
-        for (let dx = -VIEW_RADIUS; dx <= VIEW_RADIUS; dx++) {
-            const x = cx + dx;
-
-            if (dx === 0 && dy === 0) {
+        for (let x = minX; x <= maxX; x++) {
+            if (x === cx && y === cy) {
                 row += '@';
                 continue;
             }
@@ -112,16 +113,19 @@ function renderRiver(sim: GameSimulation): string {
     lines.push(`Depth: ${waterDepth} tiles  Facing: ${sim.player.direction}${canExit}`);
     lines.push('');
 
+    // Clamp viewport to river bounds
+    const minX = Math.max(0, cx - VIEW_RADIUS);
+    const maxX = Math.min(river.length - 1, cx + VIEW_RADIUS);
+    const minY = Math.max(0, cy - VIEW_RADIUS);
+    const maxY = Math.min(river.maxDepth - 1, cy + VIEW_RADIUS);
+
     // Render grid centered on player
-    for (let dy = -VIEW_RADIUS; dy <= VIEW_RADIUS; dy++) {
-        const y = cy + dy;
+    for (let y = minY; y <= maxY; y++) {
         const rowLabel = y.toString().padStart(4, ' ') + ' ';
         let row = rowLabel;
 
-        for (let dx = -VIEW_RADIUS; dx <= VIEW_RADIUS; dx++) {
-            const x = cx + dx;
-
-            if (dx === 0 && dy === 0) {
+        for (let x = minX; x <= maxX; x++) {
+            if (x === cx && y === cy) {
                 row += '@';
                 continue;
             }
