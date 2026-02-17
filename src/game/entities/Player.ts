@@ -1,20 +1,26 @@
 import { Scene } from 'phaser';
+import { TILE_SIZE } from '../constants';
+import { PlayerState } from '../simulation/PlayerState';
 
-export type Direction = 'up' | 'down' | 'left' | 'right';
-
+/**
+ * Phaser rendering layer for the player.
+ * Reads position/direction from a PlayerState and syncs the Phaser graphics.
+ */
 export class Player {
     belly: Phaser.GameObjects.Graphics | null;
     head: Phaser.GameObjects.Graphics | null;
-    direction: Direction;
-    isSwimming: boolean = false;
+    state: PlayerState;
 
     // Size constants - fits within 32x32 square
     readonly BELLY_RADIUS = 10;
     readonly HEAD_RADIUS = 6;
     readonly HEAD_OFFSET = 12; // Distance from center to head position
 
-    constructor(scene: Scene, x: number, y: number) {
-        this.direction = 'right';
+    constructor(scene: Scene, state: PlayerState) {
+        this.state = state;
+
+        const pixelX = state.tileX * TILE_SIZE + TILE_SIZE / 2;
+        const pixelY = state.tileY * TILE_SIZE + TILE_SIZE / 2;
 
         // Create belly (round circle) - darker brown
         this.belly = scene.add.graphics();
@@ -25,8 +31,7 @@ export class Player {
         this.belly.fillStyle(0xA0522D, 1); // Sienna brown
         this.belly.fillCircle(-2, -2, this.BELLY_RADIUS * 0.6);
 
-        this.belly.setPosition(x, y);
-        this.belly.setData('parent', this);
+        this.belly.setPosition(pixelX, pixelY);
 
         // Create head (smaller circle) - medium brown
         this.head = scene.add.graphics();
@@ -44,10 +49,8 @@ export class Player {
         this.head.fillCircle(-3, 0, 2); // Left cheek
         this.head.fillCircle(3, 0, 2); // Right cheek
 
-        this.head.setData('parent', this);
-
         // Set initial head position based on direction
-        this.updateHeadPosition(x, y);
+        this.updateHeadPosition(pixelX, pixelY);
 
         // Handle destruction
         this.belly.once('destroy', this.onBellyDestroyed, this);
@@ -62,11 +65,22 @@ export class Player {
         this.head = null;
     }
 
-    setDirection(direction: Direction): void {
-        this.direction = direction;
-        if (this.belly) {
-            this.updateHeadPosition(this.belly.x, this.belly.y);
-        }
+    /**
+     * Sync the Phaser graphics positions from the PlayerState tile coordinates.
+     */
+    syncFromState(): void {
+        const pixelX = this.state.tileX * TILE_SIZE + TILE_SIZE / 2;
+        const pixelY = this.state.tileY * TILE_SIZE + TILE_SIZE / 2;
+        this.setPosition(pixelX, pixelY);
+    }
+
+    /**
+     * Sync from arbitrary tile coordinates (e.g. river coordinates).
+     */
+    syncFromTile(tileX: number, tileY: number): void {
+        const pixelX = tileX * TILE_SIZE + TILE_SIZE / 2;
+        const pixelY = tileY * TILE_SIZE + TILE_SIZE / 2;
+        this.setPosition(pixelX, pixelY);
     }
 
     updateHeadPosition(centerX: number, centerY: number): void {
@@ -75,7 +89,7 @@ export class Player {
         let headX = centerX;
         let headY = centerY;
 
-        switch (this.direction) {
+        switch (this.state.direction) {
             case 'right':
                 headX += this.HEAD_OFFSET;
                 break;
@@ -100,21 +114,6 @@ export class Player {
         }
     }
 
-    move(dx: number, dy: number): void {
-        if (!this.belly) return;
-
-        const newX = this.belly.x + dx;
-        const newY = this.belly.y + dy;
-
-        // Update direction based on movement
-        if (dx > 0) this.setDirection('right');
-        else if (dx < 0) this.setDirection('left');
-        else if (dy < 0) this.setDirection('up');
-        else if (dy > 0) this.setDirection('down');
-
-        this.setPosition(newX, newY);
-    }
-
     destroy(): void {
         if (this.belly) {
             this.belly.destroy();
@@ -134,13 +133,5 @@ export class Player {
             return { x: this.belly.x, y: this.belly.y };
         }
         return { x: 0, y: 0 };
-    }
-
-    getTilePosition(): { x: number, y: number } {
-        const pos = this.getPosition();
-        return {
-            x: Math.floor(pos.x / 32), // TILE_SIZE = 32
-            y: Math.floor(pos.y / 32)
-        };
     }
 }
