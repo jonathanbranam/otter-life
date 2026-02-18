@@ -7,7 +7,9 @@
         "build": "node log.js build & webpack --config webpack/config.prod.js",
         "dev-nolog": "webpack-dev-server --config webpack/config.dev.js --open",
         "build-nolog": "webpack --config webpack/config.prod.js",
-        "cli": "npx tsx src/cli/main.ts"
+        "cli": "npx tsx src/cli/main.ts",
+        "test": "vitest run",
+        "test:watch": "vitest"
     },
     "repository": {
         "type": "git",
@@ -33,6 +35,7 @@
         "ts-loader": "^9.5.2",
         "tsx": "^4.21.0",
         "typescript": "^5.4.5",
+        "vitest": "^4.0.18",
         "webpack": "^5.99.6",
         "webpack-cli": "^6.0.1",
         "webpack-dev-server": "^5.2.1",
