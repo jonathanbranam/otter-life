@@ -8,7 +8,7 @@ import { WORLD_WIDTH, WORLD_HEIGHT } from '../game/constants';
 const SAVE_FILE = 'state.json';
 
 const COMMANDS: Record<string, string> = {
-    'new':     'Create a new game',
+    'new':     'Create a new game [--width <tiles>] [--height <tiles>]',
     'look':    'Display the current view',
     'north':   'Move north (up)',
     'south':   'Move south (down)',
@@ -48,9 +48,32 @@ function saveState(sessionDir: string, sim: GameSimulation): void {
     fs.writeFileSync(filePath, serialize(sim));
 }
 
-function handleNew(sessionDir: string): void {
-    console.log('Generating world...');
-    const sim = new GameSimulation(WORLD_WIDTH, WORLD_HEIGHT);
+function parseFlags(args: string[]): Record<string, string> {
+    const flags: Record<string, string> = {};
+    for (let i = 0; i < args.length - 1; i++) {
+        if (args[i].startsWith('--')) {
+            flags[args[i].slice(2)] = args[i + 1];
+            i++;
+        }
+    }
+    return flags;
+}
+
+function handleNew(sessionDir: string, flags: Record<string, string>): void {
+    const width = flags['width'] !== undefined ? parseInt(flags['width'], 10) : WORLD_WIDTH;
+    const height = flags['height'] !== undefined ? parseInt(flags['height'], 10) : WORLD_HEIGHT;
+
+    if (isNaN(width) || width < 10) {
+        console.error('--width must be an integer >= 10');
+        process.exit(1);
+    }
+    if (isNaN(height) || height < 10) {
+        console.error('--height must be an integer >= 10');
+        process.exit(1);
+    }
+
+    console.log(`Generating world (${width}×${height})...`);
+    const sim = new GameSimulation(width, height);
     const spawn = sim.findSpawnPosition();
     sim.spawnPlayer(spawn.x, spawn.y);
     console.log(`World created. Player spawned at (${spawn.x}, ${spawn.y}).`);
@@ -127,7 +150,8 @@ function main(): void {
     }
 
     if (command === 'new') {
-        handleNew(sessionDir);
+        const flags = parseFlags(args.slice(2));
+        handleNew(sessionDir, flags);
         return;
     }
 
