@@ -55,12 +55,20 @@ function renderOverworld(sim: GameSimulation): string {
     const minY = Math.max(0, cy - VIEW_RADIUS);
     const maxY = Math.min(world.height - 1, cy + VIEW_RADIUS);
 
-    // Column numbers header
+    // Column numbers header - show full numbers at multiples of 10, aligned to the ones digit
     let colHeader = '     ';
     for (let x = minX; x <= maxX; x++) {
-        if (x % 5 === 0) {
-            const label = Math.abs(x).toString();
-            colHeader += label.slice(-1);
+        // Check if the next column is a multiple of 10 - if so, show the tens digit here
+        if ((x + 1) % 10 === 0 && x + 1 <= maxX) {
+            const label = Math.abs(x + 1).toString();
+            const tensDigit = label.length >= 2 ? label[label.length - 2] : '';
+            colHeader += tensDigit;
+        } else if (x % 10 === 0) {
+            // At multiples of 10, show the ones digit (0)
+            colHeader += '0';
+        } else if (x % 5 === 0) {
+            // At multiples of 5 (but not 10), show the ones digit (5)
+            colHeader += '5';
         } else {
             colHeader += ' ';
         }

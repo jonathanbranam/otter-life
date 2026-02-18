@@ -182,7 +182,7 @@ program
 
 program
     .command('move-to <x> <y>')
-    .description('(cheat) Teleport to any walkable overworld tile')
+    .description('(cheat) Teleport to any tile (overworld or river depending on current mode)')
     .action((xStr: string, yStr: string) => {
         requireCheat();
         const sessionDir = program.opts().dir as string;
@@ -193,11 +193,24 @@ program
             console.error('x and y must be integers.');
             process.exit(1);
         }
-        if (!sim.cheatMoveOverworld(x, y)) {
-            console.error(`Cannot move to (${x}, ${y}): out of bounds or blocking tile.`);
-            process.exit(1);
+
+        let success = false;
+        if (sim.mode === 'overworld') {
+            success = sim.cheatMoveOverworld(x, y);
+            if (!success) {
+                console.error(`Cannot move to overworld tile (${x}, ${y}): out of bounds or blocking tile.`);
+                process.exit(1);
+            }
+            console.log(`Teleported to overworld tile (${x}, ${y}).`);
+        } else {
+            success = sim.cheatEnterRiver(x, y);
+            if (!success) {
+                console.error(`Cannot move to river position (${x}, ${y}): out of bounds or non-water tile.`);
+                process.exit(1);
+            }
+            console.log(`Teleported to river position (${x}, ${y}).`);
         }
-        console.log(`Teleported to (${x}, ${y}).`);
+
         console.log(renderView(sim));
         saveState(sessionDir, sim);
     });
