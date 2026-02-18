@@ -18,6 +18,97 @@ npm run build-nolog # Production build without telemetry
 
 Hot-reload is active - changes to TypeScript files in `src/` automatically recompile and refresh the browser.
 
+## Testing
+
+### Unit Tests (Vitest)
+
+```bash
+npm test          # Run all tests once
+npm test -- --watch  # Watch mode
+```
+
+Tests live alongside source files (`*.test.ts`).  The simulation layer has no Phaser dependency so all game-logic tests run in pure Node.js.
+
+**Static test world fixture** (`src/game/testing/fixtures.ts`):
+
+All simulation tests use `createTestSim()` rather than `new GameSimulation()` to avoid world-generation randomness and slow procedural startup.  The factory builds a 20×20 world with `Object.create` (same pattern as `Serialization.deserialize`) — no random seeds, every tile at a known coordinate.
+
+```typescript
+import { createTestSim, GRASS, DEEP, TREE, DIVE_X, WATER_Y } from '../testing/fixtures';
+
+const sim = createTestSim();
+sim.cheatMoveOverworld(DEEP.x, DEEP.y);
+sim.tryEnterRiver(); // deterministically lands at river column DIVE_X=4
+```
+
+Named overworld constants and what they contain:
+
+| Constant | Tile | Position | Notes |
+|---|---|---|---|
+| `GRASS` / `SPAWN` | GRASS | (5, 5) | Player start; all 4 neighbours walkable |
+| `DIRT` | DIRT | (5, 4) | North of spawn |
+| `MUD` | MUD | (5, 7) | Has 2 MUD resources pre-set |
+| `SHORELINE` | SHORELINE | (9, 8) | River cross-section |
+| `SHALLOW` | RIVER_SHALLOW | (11, 8) | |
+| `DEEP` | RIVER_DEEP | (13, 8) | Dive point → river column `DIVE_X=4` |
+| `TREE` | TREE (blocking) | (5, 14) | (4,14) to the west is GRASS |
+| `BORDER` | BOULDER (blocking) | (0, 0) | Always blocking |
+
+Named river constants (10 cols × 32 rows, uniform `bottomDepth=20`):
+
+| Constant | Value | Meaning |
+|---|---|---|
+| `SKY_DEPTH` | 3 | Rows 0–2 are SKY (not enterable) |
+| `DIVE_X` | 4 | River column when diving from `DEEP` |
+| `WATER_Y` | 6 | Safe WATER row; not in exit zone |
+| `NEAR_SKY_Y` | 4 | One step above the exit zone; for sky-block tests |
+| `EXIT_Y` | 3 | Valid `tryExitRiver` row |
+| `BOTTOM_Y` | 20 | First RIVER_BOTTOM row |
+| `RIVER_LENGTH` | 10 | Total river columns |
+
+**Rules for writing new simulation tests:**
+- Always use `createTestSim()` — never `new GameSimulation()` in gameplay tests
+- Reference positions by constant (`DEEP.x`, `TREE.y`) not by magic numbers
+- Use the `Tile.test.ts` file for pure `Tile`/`TileType` logic that does not need a world
+
+### CLI / Interactive Testing (no browser required)
+
+The CLI drives `GameSimulation` directly — no Phaser, no browser.  It is the fastest way to manually verify game logic interactively or to inspect generated worlds.
+
+```bash
+# Create a small world and save it to ./session/
+npm run cli -- -d ./session new --width 50 --height 50
+
+# Inspect the current view and player status
+npm run cli -- -d ./session status
+npm run cli -- -d ./session look
+
+# Move the otter (aliases: n s e w)
+npm run cli -- -d ./session north
+npm run cli -- -d ./session east
+
+# Dive / surface normally (must satisfy tile requirements)
+npm run cli -- -d ./session dive
+npm run cli -- -d ./session surface
+```
+
+**Cheat commands** (`--cheat` flag required) bypass all tile restrictions:
+
+```bash
+# Teleport to any walkable overworld tile
+npm run cli -- --cheat -d ./session move-to 42 17
+
+# Enter the river at any valid water tile (no RIVER_DEEP required)
+npm run cli -- --cheat -d ./session dive-to 5 8
+
+# Exit the river to any walkable overworld tile (no surface requirement)
+npm run cli -- --cheat -d ./session surface-to 30 10
+```
+
+The same three methods (`cheatMoveOverworld`, `cheatEnterRiver`, `cheatExitRiver`) are used in the unit tests via `createTestSim()`.  The CLI `--cheat` commands are the interactive equivalent — useful for reaching a specific game state quickly without playing through normally.
+
+Game state is persisted as `state.json` inside the session directory after every command, so you can inspect or diff the raw JSON between steps.
+
 ## Architecture Overview
 
 ### Simulation / Rendering Separation
