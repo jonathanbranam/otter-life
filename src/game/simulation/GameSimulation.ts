@@ -194,6 +194,77 @@ export class GameSimulation {
         }
     }
 
+    // --- Cheat commands (bypass normal tile/position restrictions) ---
+
+    /**
+     * Teleport the player to any overworld tile that a player can validly occupy.
+     * Returns false if the destination is out of bounds or is a blocking tile.
+     */
+    cheatMoveOverworld(x: number, y: number): boolean {
+        if (!this.world.isInBounds(x, y)) return false;
+        const tile = this.world.getTile(x, y);
+        if (!tile) return false;
+
+        // Vacate current tile first so the destination check is not blocked by the
+        // player's own occupancy (e.g. move-to same position, or returning from river).
+        this.world.vacateTile(this.player.tileX, this.player.tileY);
+
+        if (!tile.canEnter(false) && !tile.canEnter(true)) {
+            this.world.occupyTile(this.player.tileX, this.player.tileY, this.player);
+            return false;
+        }
+
+        this.player.tileX = x;
+        this.player.tileY = y;
+        this.world.occupyTile(x, y, this.player);
+        this.player.isSwimming = tile.isWaterTile();
+        this.mode = 'overworld';
+        return true;
+    }
+
+    /**
+     * Enter the river at specific river coordinates without needing to stand on RIVER_DEEP.
+     * Returns false if the river coords are out of bounds or not a valid water tile.
+     */
+    cheatEnterRiver(riverX: number, riverY: number): boolean {
+        if (!this.world.river) return false;
+        if (!this.world.river.isInBounds(riverX, riverY)) return false;
+        if (!this.world.river.canMoveTo(riverX, riverY)) return false;
+
+        this.mode = 'river';
+        this.entryRiverIndex = riverX;
+        this.riverX = riverX;
+        this.riverY = riverY;
+        return true;
+    }
+
+    /**
+     * Exit the river and place the player at a specific overworld tile without needing
+     * to be near the surface.
+     * Returns false if the destination is out of bounds or is a blocking tile.
+     */
+    cheatExitRiver(worldX: number, worldY: number): boolean {
+        if (!this.world.isInBounds(worldX, worldY)) return false;
+        const tile = this.world.getTile(worldX, worldY);
+        if (!tile) return false;
+
+        // Vacate the stored overworld position before checking the destination,
+        // because the player's own overworld tile stays occupied while in river mode.
+        this.world.vacateTile(this.player.tileX, this.player.tileY);
+
+        if (!tile.canEnter(false) && !tile.canEnter(true)) {
+            this.world.occupyTile(this.player.tileX, this.player.tileY, this.player);
+            return false;
+        }
+
+        this.mode = 'overworld';
+        this.player.tileX = worldX;
+        this.player.tileY = worldY;
+        this.world.occupyTile(worldX, worldY, this.player);
+        this.player.isSwimming = tile.isWaterTile();
+        return true;
+    }
+
     // --- River movement ---
 
     moveRiver(dx: number, dy: number): boolean {

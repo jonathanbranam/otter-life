@@ -39,7 +39,15 @@ program
     .name('otter-cli')
     .description('Otter Life interactive CLI')
     .version('1.0.0')
-    .requiredOption('-d, --dir <path>', 'Session directory');
+    .requiredOption('-d, --dir <path>', 'Session directory')
+    .option('--cheat', 'Enable cheat commands');
+
+function requireCheat(): void {
+    if (!program.opts().cheat) {
+        console.error("Error: this command requires the --cheat flag.");
+        process.exit(1);
+    }
+}
 
 // --- Commands ---
 
@@ -155,6 +163,74 @@ program
         } else {
             console.log("Can't surface here. Swim closer to the top (y=3 or y=4).");
         }
+        console.log(renderView(sim));
+        saveState(sessionDir, sim);
+    });
+
+// Cheat commands — require --cheat flag
+
+program
+    .command('move-to <x> <y>')
+    .description('(cheat) Teleport to any walkable overworld tile')
+    .action((xStr: string, yStr: string) => {
+        requireCheat();
+        const sessionDir = program.opts().dir as string;
+        const sim = requireSession(sessionDir);
+        const x = parseInt(xStr, 10);
+        const y = parseInt(yStr, 10);
+        if (isNaN(x) || isNaN(y)) {
+            console.error('x and y must be integers.');
+            process.exit(1);
+        }
+        if (!sim.cheatMoveOverworld(x, y)) {
+            console.error(`Cannot move to (${x}, ${y}): out of bounds or blocking tile.`);
+            process.exit(1);
+        }
+        console.log(`Teleported to (${x}, ${y}).`);
+        console.log(renderView(sim));
+        saveState(sessionDir, sim);
+    });
+
+program
+    .command('dive-to <riverX> <riverY>')
+    .description('(cheat) Enter the river at specific coordinates without tile restriction')
+    .action((rxStr: string, ryStr: string) => {
+        requireCheat();
+        const sessionDir = program.opts().dir as string;
+        const sim = requireSession(sessionDir);
+        const riverX = parseInt(rxStr, 10);
+        const riverY = parseInt(ryStr, 10);
+        if (isNaN(riverX) || isNaN(riverY)) {
+            console.error('riverX and riverY must be integers.');
+            process.exit(1);
+        }
+        if (!sim.cheatEnterRiver(riverX, riverY)) {
+            console.error(`Cannot enter river at (${riverX}, ${riverY}): out of bounds or non-water tile.`);
+            process.exit(1);
+        }
+        console.log(`Entered river at (${riverX}, ${riverY}).`);
+        console.log(renderView(sim));
+        saveState(sessionDir, sim);
+    });
+
+program
+    .command('surface-to <worldX> <worldY>')
+    .description('(cheat) Exit the river and place player at a specific overworld tile')
+    .action((wxStr: string, wyStr: string) => {
+        requireCheat();
+        const sessionDir = program.opts().dir as string;
+        const sim = requireSession(sessionDir);
+        const worldX = parseInt(wxStr, 10);
+        const worldY = parseInt(wyStr, 10);
+        if (isNaN(worldX) || isNaN(worldY)) {
+            console.error('worldX and worldY must be integers.');
+            process.exit(1);
+        }
+        if (!sim.cheatExitRiver(worldX, worldY)) {
+            console.error(`Cannot surface to (${worldX}, ${worldY}): out of bounds or blocking tile.`);
+            process.exit(1);
+        }
+        console.log(`Surfaced to overworld at (${worldX}, ${worldY}).`);
         console.log(renderView(sim));
         saveState(sessionDir, sim);
     });
