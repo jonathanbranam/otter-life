@@ -3,6 +3,7 @@ import * as path from 'path';
 import { Command } from 'commander';
 import { GameSimulation } from '../game/simulation/GameSimulation';
 import { serialize, deserialize } from '../game/simulation/Serialization';
+import { createTestSim } from '../game/testing/fixtures';
 import { renderView } from './renderer';
 import { WORLD_WIDTH, WORLD_HEIGHT } from '../game/constants';
 
@@ -56,8 +57,18 @@ program
     .description('Create a new game')
     .option('--width <tiles>', 'World width in tiles', String(WORLD_WIDTH))
     .option('--height <tiles>', 'World height in tiles', String(WORLD_HEIGHT))
+    .option('--fixture', 'Use the static 20×20 test-fixture world instead of generating a random world')
     .action((opts) => {
         const sessionDir = program.opts().dir as string;
+
+        if (opts.fixture) {
+            const sim = createTestSim();
+            console.log(`Test-fixture world loaded (20×20). Player at (${sim.player.tileX}, ${sim.player.tileY}).`);
+            saveState(sessionDir, sim);
+            console.log(renderView(sim));
+            return;
+        }
+
         const width = parseInt(opts.width, 10);
         const height = parseInt(opts.height, 10);
 

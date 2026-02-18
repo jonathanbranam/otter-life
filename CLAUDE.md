@@ -79,6 +79,9 @@ The CLI drives `GameSimulation` directly — no Phaser, no browser.  It is the f
 # Create a small world and save it to ./session/
 npm run cli -- -d ./session new --width 50 --height 50
 
+# Use the static test-fixture world (20×20, known tile positions, instant — no generation)
+npm run cli -- -d ./session new --fixture
+
 # Inspect the current view and player status
 npm run cli -- -d ./session status
 npm run cli -- -d ./session look
