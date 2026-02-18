@@ -1,78 +1,81 @@
 import { describe, it, expect } from 'vitest';
-import { GameSimulation } from './GameSimulation';
 import { serialize, deserialize } from './Serialization';
-import { TileType } from '../world/TileType';
+import { ResourceType } from '../world/Tile';
+import {
+    createTestSim,
+    GRASS, MUD, DEEP,
+    DIVE_X, WATER_Y, EXIT_Y,
+    WIDTH, HEIGHT, RIVER_LENGTH, SKY_DEPTH, BOTTOM_Y,
+} from '../testing/fixtures';
 
-const SIM_SIZE = 30;
-
-function makeSim(): GameSimulation {
-    const sim = new GameSimulation(SIM_SIZE, SIM_SIZE);
-    const spawn = sim.findSpawnPosition();
-    sim.spawnPlayer(spawn.x, spawn.y);
-    return sim;
-}
-
-function roundTrip(sim: GameSimulation): GameSimulation {
+function roundTrip(sim: ReturnType<typeof createTestSim>) {
     return deserialize(serialize(sim));
 }
 
 describe('Serialization', () => {
     describe('player state round-trip', () => {
         it('preserves player position', () => {
-            const sim = makeSim();
+            const sim = createTestSim();
             const restored = roundTrip(sim);
-            expect(restored.player.tileX).toBe(sim.player.tileX);
-            expect(restored.player.tileY).toBe(sim.player.tileY);
+            expect(restored.player.tileX).toBe(GRASS.x);
+            expect(restored.player.tileY).toBe(GRASS.y);
         });
 
         it('preserves player direction', () => {
-            const sim = makeSim();
+            const sim = createTestSim();
             sim.player.direction = 'left';
             expect(roundTrip(sim).player.direction).toBe('left');
         });
 
-        it('preserves isSwimming', () => {
-            const sim = makeSim();
+        it('preserves isSwimming=true', () => {
+            const sim = createTestSim();
             sim.player.isSwimming = true;
             expect(roundTrip(sim).player.isSwimming).toBe(true);
+        });
+
+        it('preserves isSwimming=false', () => {
+            const sim = createTestSim();
+            sim.player.isSwimming = false;
+            expect(roundTrip(sim).player.isSwimming).toBe(false);
         });
     });
 
     describe('game mode round-trip', () => {
         it('preserves overworld mode', () => {
-            const sim = makeSim();
-            expect(roundTrip(sim).mode).toBe('overworld');
+            expect(roundTrip(createTestSim()).mode).toBe('overworld');
         });
 
-        it('preserves river mode', () => {
-            const sim = makeSim();
-            sim.cheatEnterRiver(10, 8);
+        it('preserves river mode with exact coordinates', () => {
+            const sim = createTestSim();
+            sim.cheatEnterRiver(DIVE_X, WATER_Y);
             const restored = roundTrip(sim);
             expect(restored.mode).toBe('river');
-            expect(restored.riverX).toBe(10);
-            expect(restored.riverY).toBe(8);
+            expect(restored.riverX).toBe(DIVE_X);
+            expect(restored.riverY).toBe(WATER_Y);
         });
 
-        it('preserves entryRiverIndex', () => {
-            const sim = makeSim();
-            sim.cheatEnterRiver(15, 8);
-            expect(roundTrip(sim).entryRiverIndex).toBe(sim.entryRiverIndex);
+        it('preserves entryRiverIndex set by tryEnterRiver', () => {
+            const sim = createTestSim();
+            sim.cheatMoveOverworld(DEEP.x, DEEP.y);
+            sim.tryEnterRiver(); // sets entryRiverIndex = DIVE_X
+            const restored = roundTrip(sim);
+            expect(restored.entryRiverIndex).toBe(sim.entryRiverIndex);
+            expect(restored.entryRiverIndex).toBe(DIVE_X);
         });
     });
 
     describe('world state round-trip', () => {
         it('preserves world dimensions', () => {
-            const sim = makeSim();
-            const restored = roundTrip(sim);
-            expect(restored.world.width).toBe(SIM_SIZE);
-            expect(restored.world.height).toBe(SIM_SIZE);
+            const restored = roundTrip(createTestSim());
+            expect(restored.world.width).toBe(WIDTH);
+            expect(restored.world.height).toBe(HEIGHT);
         });
 
         it('preserves every tile type', () => {
-            const sim = makeSim();
+            const sim = createTestSim();
             const restored = roundTrip(sim);
-            for (let y = 0; y < SIM_SIZE; y++) {
-                for (let x = 0; x < SIM_SIZE; x++) {
+            for (let y = 0; y < HEIGHT; y++) {
+                for (let x = 0; x < WIDTH; x++) {
                     expect(restored.world.getTile(x, y)?.type)
                         .toBe(sim.world.getTile(x, y)?.type);
                 }
@@ -80,100 +83,98 @@ describe('Serialization', () => {
         });
 
         it('preserves river path', () => {
-            const sim = makeSim();
+            const sim = createTestSim();
             const restored = roundTrip(sim);
             expect(restored.world.riverPath).toEqual(sim.world.riverPath);
+            expect(restored.world.riverPath).toHaveLength(RIVER_LENGTH);
         });
     });
 
     describe('river data round-trip', () => {
         it('preserves river length and depth constants', () => {
-            const sim = makeSim();
-            const restored = roundTrip(sim);
-            expect(restored.world.river!.length).toBe(sim.world.river!.length);
-            expect(restored.world.river!.skyDepth).toBe(sim.world.river!.skyDepth);
-            expect(restored.world.river!.maxDepth).toBe(sim.world.river!.maxDepth);
+            const restored = roundTrip(createTestSim());
+            expect(restored.world.river!.length).toBe(RIVER_LENGTH);
+            expect(restored.world.river!.skyDepth).toBe(SKY_DEPTH);
         });
 
         it('preserves bottomDepth profile', () => {
-            const sim = makeSim();
+            const sim = createTestSim();
             const restored = roundTrip(sim);
-            expect(restored.world.river!.bottomDepth).toEqual(sim.world.river!.bottomDepth);
+            expect(restored.world.river!.bottomDepth)
+                .toEqual(sim.world.river!.bottomDepth);
+            // All columns share the same known bottom depth
+            expect(restored.world.river!.bottomDepth.every(d => d === BOTTOM_Y)).toBe(true);
         });
 
-        it('reconstructs river tile types from bottomDepth', () => {
-            const sim = makeSim();
-            const restored = roundTrip(sim);
-            const river = restored.world.river!;
+        it('reconstructs correct tile types from bottomDepth', () => {
+            const river = roundTrip(createTestSim()).world.river!;
+            const x = DIVE_X; // sample column 4
+
             // SKY rows
-            for (let x = 0; x < river.length; x++) {
-                for (let y = 0; y < river.skyDepth; y++) {
-                    expect(river.getTile(x, y)?.type).toBe('sky');
-                }
+            for (let y = 0; y < SKY_DEPTH; y++) {
+                expect(river.getTile(x, y)?.type).toBe('sky');
             }
-            // WATER rows at a sample column
-            const x = 5;
-            const bottom = river.bottomDepth[x];
-            expect(river.getTile(x, bottom - 1)?.type).toBe('water');
-            // RIVER_BOTTOM
-            expect(river.getTile(x, bottom)?.type).toBe('river_bottom');
+            // Last WATER row (one above bottom)
+            expect(river.getTile(x, BOTTOM_Y - 1)?.type).toBe('water');
+            // First RIVER_BOTTOM row
+            expect(river.getTile(x, BOTTOM_Y)?.type).toBe('river_bottom');
         });
     });
 
     describe('resources round-trip', () => {
-        it('restores resource type and count on tiles', () => {
-            const sim = makeSim();
-            // Find any tile that has a resource
-            let source: { x: number; y: number; type: string; count: number } | null = null;
-            outer: for (let y = 0; y < SIM_SIZE; y++) {
-                for (let x = 0; x < SIM_SIZE; x++) {
-                    const t = sim.world.getTile(x, y);
-                    if (t && t.resourceCount > 0 && t.resourceType) {
-                        source = { x, y, type: t.resourceType, count: t.resourceCount };
-                        break outer;
-                    }
-                }
-            }
-            if (!source) return; // skip — no resources generated in this random world
-
-            const restored = roundTrip(sim);
-            const rt = restored.world.getTile(source.x, source.y);
-            expect(rt?.resourceType).toBe(source.type);
-            expect(rt?.resourceCount).toBe(source.count);
+        it('restores the MUD resource type and count at the known MUD tile', () => {
+            // MUD at (5,7) has resourceType=MUD, resourceCount=2 in the fixture
+            const restored = roundTrip(createTestSim());
+            const tile = restored.world.getTile(MUD.x, MUD.y);
+            expect(tile?.resourceType).toBe(ResourceType.MUD);
+            expect(tile?.resourceCount).toBe(2);
         });
 
-        it('tiles without resources have no resourceType', () => {
-            const sim = makeSim();
+        it('tiles without resources have null resourceType after round-trip', () => {
+            // GRASS at (5,5) has no resource
+            const restored = roundTrip(createTestSim());
+            expect(restored.world.getTile(GRASS.x, GRASS.y)?.resourceType).toBeNull();
+        });
+
+        it('harvesting a resource is reflected after round-trip', () => {
+            const sim = createTestSim();
+            sim.world.getTile(MUD.x, MUD.y)!.harvestResource(); // count: 2 → 1
             const restored = roundTrip(sim);
-            const grass = (() => {
-                for (let y = 0; y < SIM_SIZE; y++)
-                    for (let x = 0; x < SIM_SIZE; x++) {
-                        const t = sim.world.getTile(x, y);
-                        if (t?.type === TileType.GRASS && !t.resourceType) return { x, y };
-                    }
-                return null;
-            })();
-            if (!grass) return;
-            expect(restored.world.getTile(grass.x, grass.y)?.resourceType).toBeNull();
+            expect(restored.world.getTile(MUD.x, MUD.y)?.resourceCount).toBe(1);
         });
     });
 
     describe('occupancy restoration', () => {
         it("re-establishes the player's tile occupancy", () => {
-            const sim = makeSim();
-            const restored = roundTrip(sim);
+            const restored = roundTrip(createTestSim());
             const { tileX, tileY } = restored.player;
             expect(restored.world.getTile(tileX, tileY)?.occupiedBy).toBe(restored.player);
         });
 
-        it('does not double-occupy any tile', () => {
-            const sim = makeSim();
-            const restored = roundTrip(sim);
+        it('exactly one tile is occupied after round-trip', () => {
+            const restored = roundTrip(createTestSim());
             let occupied = 0;
-            for (let y = 0; y < SIM_SIZE; y++)
-                for (let x = 0; x < SIM_SIZE; x++)
+            for (let y = 0; y < HEIGHT; y++)
+                for (let x = 0; x < WIDTH; x++)
                     if (restored.world.getTile(x, y)?.occupiedBy) occupied++;
             expect(occupied).toBe(1);
+        });
+
+        it('player tile is at the known GRASS spawn after round-trip', () => {
+            const restored = roundTrip(createTestSim());
+            expect(restored.player.tileX).toBe(GRASS.x);
+            expect(restored.player.tileY).toBe(GRASS.y);
+            expect(restored.world.getTile(GRASS.x, GRASS.y)?.occupiedBy).toBe(restored.player);
+        });
+
+        it('saves and restores river-mode state, occupancy stays in overworld', () => {
+            const sim = createTestSim();
+            sim.cheatEnterRiver(DIVE_X, EXIT_Y);
+            const restored = roundTrip(sim);
+            expect(restored.mode).toBe('river');
+            // Overworld player tile is still tracked (occupied by player)
+            expect(restored.world.getTile(restored.player.tileX, restored.player.tileY)?.occupiedBy)
+                .toBe(restored.player);
         });
     });
 

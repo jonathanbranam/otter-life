@@ -1,428 +1,381 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { GameSimulation } from './GameSimulation';
-import { TileType } from '../world/TileType';
+import {
+    createTestSim,
+    GRASS, DIRT, MUD, SHALLOW, DEEP, TREE, BORDER,
+    DIVE_X, WATER_Y, NEAR_SKY_Y, EXIT_Y, BOTTOM_Y, RIVER_LENGTH,
+    WIDTH, HEIGHT,
+} from '../testing/fixtures';
 
-// Use a small world so generation is fast in tests
-const SIM_SIZE = 30;
-
-function makeSim(): GameSimulation {
-    const sim = new GameSimulation(SIM_SIZE, SIM_SIZE);
-    const spawn = sim.findSpawnPosition();
-    sim.spawnPlayer(spawn.x, spawn.y);
-    return sim;
-}
-
-function findTile(sim: GameSimulation, type: TileType): { x: number; y: number } | null {
-    for (let y = 0; y < sim.world.height; y++) {
-        for (let x = 0; x < sim.world.width; x++) {
-            if (sim.world.getTile(x, y)?.type === type) return { x, y };
-        }
-    }
-    return null;
-}
-
-// --- Construction and spawn ---
+// ── Construction and spawn ────────────────────────────────────────────────────
+// These tests exercise the real GameSimulation constructor and world generation.
 
 describe('GameSimulation construction', () => {
     it('creates a world with the requested dimensions', () => {
-        const sim = new GameSimulation(SIM_SIZE, SIM_SIZE);
-        expect(sim.world.width).toBe(SIM_SIZE);
-        expect(sim.world.height).toBe(SIM_SIZE);
+        const sim = new GameSimulation(WIDTH, HEIGHT);
+        expect(sim.world.width).toBe(WIDTH);
+        expect(sim.world.height).toBe(HEIGHT);
     });
 
     it('starts in overworld mode', () => {
-        expect(makeSim().mode).toBe('overworld');
+        // True for both real-generated worlds and the fixture
+        expect(new GameSimulation(WIDTH, HEIGHT).mode).toBe('overworld');
+        expect(createTestSim().mode).toBe('overworld');
     });
 
-    it('findSpawnPosition returns a tile the player can occupy', () => {
-        const sim = new GameSimulation(SIM_SIZE, SIM_SIZE);
+    it('findSpawnPosition returns a tile the player can enter', () => {
+        const sim = new GameSimulation(WIDTH, HEIGHT);
         const { x, y } = sim.findSpawnPosition();
         const tile = sim.world.getTile(x, y);
         expect(tile).not.toBeNull();
         expect(tile!.canEnter(false) || tile!.canEnter(true)).toBe(true);
     });
 
-    it('spawnPlayer sets player coordinates', () => {
-        const sim = new GameSimulation(SIM_SIZE, SIM_SIZE);
+    it('spawnPlayer sets player coordinates and occupies the tile', () => {
+        const sim = new GameSimulation(WIDTH, HEIGHT);
         const { x, y } = sim.findSpawnPosition();
         sim.spawnPlayer(x, y);
         expect(sim.player.tileX).toBe(x);
         expect(sim.player.tileY).toBe(y);
-    });
-
-    it('spawnPlayer occupies the tile', () => {
-        const sim = new GameSimulation(SIM_SIZE, SIM_SIZE);
-        const { x, y } = sim.findSpawnPosition();
-        sim.spawnPlayer(x, y);
         expect(sim.world.getTile(x, y)?.occupiedBy).toBe(sim.player);
     });
 
-    it('spawnPlayer sets isSwimming based on tile type', () => {
-        const sim = new GameSimulation(SIM_SIZE, SIM_SIZE);
-        const grass = findTile(sim, TileType.GRASS);
-        if (!grass) return;
-        sim.spawnPlayer(grass.x, grass.y);
+    // Fixture-based spawn checks (deterministic positions)
+    it('fixture: player spawns at GRASS and isSwimming is false', () => {
+        const sim = createTestSim();
+        expect(sim.player.tileX).toBe(GRASS.x);
+        expect(sim.player.tileY).toBe(GRASS.y);
         expect(sim.player.isSwimming).toBe(false);
+        expect(sim.world.getTile(GRASS.x, GRASS.y)?.occupiedBy).toBe(sim.player);
     });
 });
 
-// --- Overworld movement ---
+// ── Overworld movement ────────────────────────────────────────────────────────
 
 describe('GameSimulation.moveOverworld', () => {
     let sim: GameSimulation;
+    beforeEach(() => { sim = createTestSim(); });
 
-    beforeEach(() => { sim = makeSim(); });
-
-    it('returns false when destination is a border blocking tile', () => {
-        // edgeWidth=2: x=0 and x=1 are always BOULDER/CLIFF/ROCK.
-        // Find a walkable tile at x=2, then try to step left into x=1.
+    it('returns false when destination is a border tile (BOULDER)', () => {
+        // x=2 is just inside the 2-tile border; stepping left hits x=1 (BOULDER)
         let placed = false;
-        for (let y = 2; y < SIM_SIZE - 2; y++) {
+        for (let y = 2; y < HEIGHT - 2; y++) {
             if (sim.cheatMoveOverworld(2, y)) { placed = true; break; }
         }
         expect(placed).toBe(true);
         expect(sim.moveOverworld(-1, 0)).toBe(false);
     });
 
-    it('returns false when destination is a blocking tile', () => {
-        const tree = findTile(sim, TileType.TREE);
-        if (!tree) return;
-        // Place player adjacent to the tree and try to walk into it
-        const adjacent = [
-            { dx: 1, dy: 0 }, { dx: -1, dy: 0 },
-            { dx: 0, dy: 1 }, { dx: 0, dy: -1 },
-        ];
-        for (const { dx, dy } of adjacent) {
-            const ax = tree.x - dx;
-            const ay = tree.y - dy;
-            if (sim.cheatMoveOverworld(ax, ay)) {
-                expect(sim.moveOverworld(dx, dy)).toBe(false);
-                return;
-            }
-        }
+    it('returns false when destination is a TREE', () => {
+        // (4,14) is GRASS directly west of TREE at (5,14)
+        sim.cheatMoveOverworld(4, 14);
+        expect(sim.moveOverworld(1, 0)).toBe(false);
     });
 
-    it('returns true and updates position on valid move', () => {
-        const grass = findTile(sim, TileType.GRASS);
-        if (!grass) return;
-        sim.cheatMoveOverworld(grass.x, grass.y);
-
-        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-            if (sim.moveOverworld(dx, dy)) {
-                expect(sim.player.tileX).toBe(grass.x + dx);
-                expect(sim.player.tileY).toBe(grass.y + dy);
-                return;
-            }
-        }
+    it('moves north onto DIRT and updates position', () => {
+        // GRASS=(5,5), north is DIRT=(5,4) — both walkable
+        expect(sim.moveOverworld(0, -1)).toBe(true);
+        expect(sim.player.tileX).toBe(DIRT.x);
+        expect(sim.player.tileY).toBe(DIRT.y);
     });
 
-    it('updates direction when moving', () => {
-        const grass = findTile(sim, TileType.GRASS);
-        if (!grass) return;
-        sim.cheatMoveOverworld(grass.x, grass.y);
-
-        const dirMap: Record<string, string> = {
-            '1,0': 'right', '-1,0': 'left', '0,1': 'down', '0,-1': 'up',
-        };
-        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-            sim.cheatMoveOverworld(grass.x, grass.y); // reset position
-            if (sim.moveOverworld(dx, dy)) {
-                expect(sim.player.direction).toBe(dirMap[`${dx},${dy}`]);
-                return;
-            }
-        }
+    it('moves east onto GRASS and updates position', () => {
+        expect(sim.moveOverworld(1, 0)).toBe(true);
+        expect(sim.player.tileX).toBe(GRASS.x + 1);
+        expect(sim.player.tileY).toBe(GRASS.y);
     });
 
-    it('vacates the old tile on move', () => {
-        const grass = findTile(sim, TileType.GRASS);
-        if (!grass) return;
-        sim.cheatMoveOverworld(grass.x, grass.y);
-        const { tileX: oldX, tileY: oldY } = sim.player;
-
-        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-            if (sim.moveOverworld(dx, dy)) {
-                expect(sim.world.getTile(oldX, oldY)?.occupiedBy).toBeNull();
-                return;
-            }
-        }
+    it('updates direction to "up" when moving north', () => {
+        sim.moveOverworld(0, -1);
+        expect(sim.player.direction).toBe('up');
     });
 
-    it('occupies the new tile on move', () => {
-        const grass = findTile(sim, TileType.GRASS);
-        if (!grass) return;
-        sim.cheatMoveOverworld(grass.x, grass.y);
-
-        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-            if (sim.moveOverworld(dx, dy)) {
-                expect(sim.world.getTile(sim.player.tileX, sim.player.tileY)?.occupiedBy)
-                    .toBe(sim.player);
-                return;
-            }
-        }
+    it('updates direction to "right" when moving east', () => {
+        sim.moveOverworld(1, 0);
+        expect(sim.player.direction).toBe('right');
     });
 
-    it('sets isSwimming when moving onto a water tile', () => {
-        const shallow = findTile(sim, TileType.RIVER_SHALLOW);
-        if (!shallow) return;
-        sim.cheatMoveOverworld(shallow.x, shallow.y);
+    it('updates direction to "down" when moving south', () => {
+        sim.moveOverworld(0, 1);
+        expect(sim.player.direction).toBe('down');
+    });
+
+    it('updates direction to "left" when moving west', () => {
+        sim.moveOverworld(-1, 0);
+        expect(sim.player.direction).toBe('left');
+    });
+
+    it('vacates the old tile on a successful move', () => {
+        const { tileX: ox, tileY: oy } = sim.player;
+        sim.moveOverworld(1, 0);
+        expect(sim.world.getTile(ox, oy)?.occupiedBy).toBeNull();
+    });
+
+    it('occupies the new tile on a successful move', () => {
+        sim.moveOverworld(1, 0);
+        expect(sim.world.getTile(sim.player.tileX, sim.player.tileY)?.occupiedBy)
+            .toBe(sim.player);
+    });
+
+    it('does not change occupancy on a blocked move', () => {
+        sim.cheatMoveOverworld(4, 14); // west of TREE at (5,14)
+        const ox = sim.player.tileX;
+        const oy = sim.player.tileY;
+        sim.moveOverworld(1, 0); // blocked
+        expect(sim.world.getTile(ox, oy)?.occupiedBy).toBe(sim.player);
+        expect(sim.world.getTile(TREE.x, TREE.y)?.occupiedBy).toBeNull();
+    });
+
+    it('sets isSwimming=true when moving onto RIVER_SHALLOW', () => {
+        // (10,8) is SHORELINE; step east into SHALLOW at (11,8)
+        sim.cheatMoveOverworld(10, 8);
+        sim.moveOverworld(1, 0);
         expect(sim.player.isSwimming).toBe(true);
     });
 
-    it('clears isSwimming when moving onto a land tile', () => {
-        const grass = findTile(sim, TileType.GRASS);
-        if (!grass) return;
-        sim.cheatMoveOverworld(grass.x, grass.y);
+    it('clears isSwimming when moving from SHALLOW onto SHORELINE', () => {
+        sim.cheatMoveOverworld(SHALLOW.x, SHALLOW.y);
+        expect(sim.player.isSwimming).toBe(true);
+        sim.moveOverworld(-1, 0); // → (10,8) SHORELINE
         expect(sim.player.isSwimming).toBe(false);
     });
 });
 
-// --- River entry and exit ---
+// ── River entry and exit ──────────────────────────────────────────────────────
 
 describe('GameSimulation river transitions', () => {
     let sim: GameSimulation;
+    beforeEach(() => { sim = createTestSim(); });
 
-    beforeEach(() => { sim = makeSim(); });
-
-    it('tryEnterRiver returns null when not on RIVER_DEEP', () => {
-        const grass = findTile(sim, TileType.GRASS);
-        if (!grass) return;
-        sim.cheatMoveOverworld(grass.x, grass.y);
+    it('tryEnterRiver returns null when not on RIVER_DEEP (GRASS)', () => {
         expect(sim.tryEnterRiver()).toBeNull();
         expect(sim.mode).toBe('overworld');
     });
 
-    it('tryEnterRiver succeeds on RIVER_DEEP and switches mode', () => {
-        const deep = findTile(sim, TileType.RIVER_DEEP);
-        if (!deep) return;
-        sim.cheatMoveOverworld(deep.x, deep.y);
-        const result = sim.tryEnterRiver();
-        expect(result).not.toBeNull();
+    it('tryEnterRiver returns null on RIVER_SHALLOW (not deep enough)', () => {
+        sim.cheatMoveOverworld(SHALLOW.x, SHALLOW.y);
+        expect(sim.tryEnterRiver()).toBeNull();
+    });
+
+    it('tryEnterRiver succeeds on RIVER_DEEP and switches to river mode', () => {
+        sim.cheatMoveOverworld(DEEP.x, DEEP.y);
+        expect(sim.tryEnterRiver()).not.toBeNull();
         expect(sim.mode).toBe('river');
     });
 
-    it('tryEnterRiver places player at first water row below sky', () => {
-        const deep = findTile(sim, TileType.RIVER_DEEP);
-        if (!deep) return;
-        sim.cheatMoveOverworld(deep.x, deep.y);
+    it('tryEnterRiver places player at river column matching the dive point', () => {
+        sim.cheatMoveOverworld(DEEP.x, DEEP.y);
+        sim.tryEnterRiver();
+        // DEEP at (13,8) maps to riverPath index 4 = DIVE_X
+        expect(sim.riverX).toBe(DIVE_X);
+    });
+
+    it('tryEnterRiver places player at the first water row (skyDepth+1)', () => {
+        sim.cheatMoveOverworld(DEEP.x, DEEP.y);
         sim.tryEnterRiver();
         expect(sim.riverY).toBe(sim.world.river!.skyDepth + 1);
     });
 
-    it('tryExitRiver returns null when y is not in exit zone', () => {
-        // y=6 is always WATER (minDepth=7 so bottomDepth >= 7 > 6) and > 4
-        // so the exit-zone check (y < 3 || y > 4) rejects it.
-        const entered = sim.cheatEnterRiver(10, 6);
-        expect(entered).toBe(true);
+    it('tryExitRiver returns null when below the exit zone (y=6)', () => {
+        // WATER_Y=6 > 4, so outside the exit zone
+        sim.cheatEnterRiver(DIVE_X, WATER_Y);
         expect(sim.tryExitRiver()).toBeNull();
         expect(sim.mode).toBe('river');
     });
 
-    it('tryExitRiver succeeds at y=3', () => {
-        sim.cheatEnterRiver(10, 3);
-        const result = sim.tryExitRiver();
-        expect(result).not.toBeNull();
+    it('tryExitRiver succeeds at EXIT_Y=3', () => {
+        sim.cheatEnterRiver(DIVE_X, EXIT_Y);
+        expect(sim.tryExitRiver()).not.toBeNull();
         expect(sim.mode).toBe('overworld');
     });
 
     it('tryExitRiver succeeds at y=4', () => {
-        sim.cheatEnterRiver(10, 4);
-        const result = sim.tryExitRiver();
-        expect(result).not.toBeNull();
+        sim.cheatEnterRiver(DIVE_X, 4);
+        expect(sim.tryExitRiver()).not.toBeNull();
         expect(sim.mode).toBe('overworld');
     });
 
-    it('tryExitRiver returns overworld tile coordinates', () => {
-        sim.cheatEnterRiver(10, 3);
-        const result = sim.tryExitRiver();
-        expect(result).not.toBeNull();
-        expect(typeof result!.worldTileX).toBe('number');
-        expect(typeof result!.worldTileY).toBe('number');
-    });
-
-    it('tryExitRiver restores player position in world', () => {
-        sim.cheatEnterRiver(10, 3);
-        const result = sim.tryExitRiver();
-        if (!result) return;
-        expect(sim.player.tileX).toBe(result.worldTileX);
-        expect(sim.player.tileY).toBe(result.worldTileY);
+    it('tryExitRiver restores player to the correct overworld tile', () => {
+        sim.cheatEnterRiver(DIVE_X, EXIT_Y);
+        const result = sim.tryExitRiver()!;
+        // riverPath[DIVE_X=4] = {x:13, y:8} = DEEP
+        expect(result.worldTileX).toBe(DEEP.x);
+        expect(result.worldTileY).toBe(DEEP.y);
+        expect(sim.player.tileX).toBe(DEEP.x);
+        expect(sim.player.tileY).toBe(DEEP.y);
     });
 });
 
-// --- River movement ---
+// ── River movement ────────────────────────────────────────────────────────────
 
 describe('GameSimulation.moveRiver', () => {
     let sim: GameSimulation;
+    beforeEach(() => {
+        sim = createTestSim();
+        sim.cheatEnterRiver(DIVE_X, WATER_Y); // (4, 6) — safe water position
+    });
 
-    beforeEach(() => { sim = makeSim(); });
-
-    it('moves horizontally within valid river bounds', () => {
-        // y=4 = skyDepth+1 = first water row; always valid since minDepth(=7) > 4
-        sim.cheatEnterRiver(10, 4);
+    it('moves east (dx=+1)', () => {
         expect(sim.moveRiver(1, 0)).toBe(true);
-        expect(sim.riverX).toBe(11);
-    });
-
-    it('moves vertically within valid river bounds', () => {
-        sim.cheatEnterRiver(10, 4);
-        expect(sim.moveRiver(0, 1)).toBe(true);
-        expect(sim.riverY).toBe(5);
-    });
-
-    it('updates direction when moving in river', () => {
-        sim.cheatEnterRiver(10, 4);
-        sim.moveRiver(-1, 0);
-        expect(sim.player.direction).toBe('left');
-        sim.moveRiver(1, 0);
+        expect(sim.riverX).toBe(DIVE_X + 1);
         expect(sim.player.direction).toBe('right');
     });
 
-    it('blocks movement into sky tile', () => {
-        // skyDepth=3 → y=0,1,2 are sky; y=3 is the last water row before sky
-        sim.cheatEnterRiver(10, 4);
-        sim.moveRiver(0, -1); // y=3 (WATER) — should succeed
+    it('moves west (dx=-1)', () => {
+        expect(sim.moveRiver(-1, 0)).toBe(true);
+        expect(sim.riverX).toBe(DIVE_X - 1);
+        expect(sim.player.direction).toBe('left');
+    });
+
+    it('moves down (dy=+1)', () => {
+        expect(sim.moveRiver(0, 1)).toBe(true);
+        expect(sim.riverY).toBe(WATER_Y + 1);
+        expect(sim.player.direction).toBe('down');
+    });
+
+    it('moves up (dy=-1)', () => {
+        expect(sim.moveRiver(0, -1)).toBe(true);
+        expect(sim.riverY).toBe(WATER_Y - 1);
+        expect(sim.player.direction).toBe('up');
+    });
+
+    it('blocks movement into a SKY tile', () => {
+        // NEAR_SKY_Y=4: one step up reaches y=3 (last water), another hits y=2 (SKY)
+        sim.cheatEnterRiver(DIVE_X, NEAR_SKY_Y);
+        expect(sim.moveRiver(0, -1)).toBe(true);   // → y=3 (WATER)
         expect(sim.riverY).toBe(3);
-        expect(sim.moveRiver(0, -1)).toBe(false); // y=2 (SKY) — must be blocked
+        expect(sim.moveRiver(0, -1)).toBe(false);  // → y=2 (SKY) blocked
         expect(sim.riverY).toBe(3);
     });
 
-    it('blocks movement into river bottom tile', () => {
-        const river = sim.world.river!;
-        const bottomY = river.bottomDepth[10]; // actual bottom depth at x=10
-        sim.cheatEnterRiver(10, bottomY - 1); // one row above bottom
+    it('blocks movement into the RIVER_BOTTOM', () => {
+        // BOTTOM_Y=20; place one row above and step down
+        sim.cheatEnterRiver(DIVE_X, BOTTOM_Y - 1);
         expect(sim.moveRiver(0, 1)).toBe(false);
+        expect(sim.riverY).toBe(BOTTOM_Y - 1);
     });
 
-    it('blocks movement out of river bounds (left edge)', () => {
-        sim.cheatEnterRiver(0, 4);
+    it('blocks movement past the left edge (x=0)', () => {
+        sim.cheatEnterRiver(0, WATER_Y);
         expect(sim.moveRiver(-1, 0)).toBe(false);
     });
 
-    it('blocks movement out of river bounds (right edge)', () => {
-        const river = sim.world.river!;
-        sim.cheatEnterRiver(river.length - 1, 4);
+    it('blocks movement past the right edge', () => {
+        sim.cheatEnterRiver(RIVER_LENGTH - 1, WATER_Y);
         expect(sim.moveRiver(1, 0)).toBe(false);
     });
 });
 
-// --- Cheat commands ---
+// ── Cheat commands ────────────────────────────────────────────────────────────
 
-describe('GameSimulation cheat commands', () => {
+describe('cheatMoveOverworld', () => {
     let sim: GameSimulation;
+    beforeEach(() => { sim = createTestSim(); });
 
-    beforeEach(() => { sim = makeSim(); });
-
-    describe('cheatMoveOverworld', () => {
-        it('teleports to any walkable tile and returns true', () => {
-            const grass = findTile(sim, TileType.GRASS);
-            if (!grass) return;
-            expect(sim.cheatMoveOverworld(grass.x, grass.y)).toBe(true);
-            expect(sim.player.tileX).toBe(grass.x);
-            expect(sim.player.tileY).toBe(grass.y);
-        });
-
-        it('sets mode to overworld', () => {
-            sim.cheatEnterRiver(10, 4);
-            const grass = findTile(sim, TileType.GRASS);
-            if (!grass) return;
-            sim.cheatMoveOverworld(grass.x, grass.y);
-            expect(sim.mode).toBe('overworld');
-        });
-
-        it('returns false for out-of-bounds coordinates', () => {
-            expect(sim.cheatMoveOverworld(-1, 5)).toBe(false);
-            expect(sim.cheatMoveOverworld(5, -1)).toBe(false);
-            expect(sim.cheatMoveOverworld(SIM_SIZE, 5)).toBe(false);
-        });
-
-        it('returns false for blocking tiles', () => {
-            // (0,0) is always a border BOULDER or CLIFF
-            expect(sim.cheatMoveOverworld(0, 0)).toBe(false);
-        });
-
-        it('vacates old tile and occupies new tile', () => {
-            const grass = findTile(sim, TileType.GRASS);
-            if (!grass) return;
-            const oldX = sim.player.tileX;
-            const oldY = sim.player.tileY;
-            sim.cheatMoveOverworld(grass.x, grass.y);
-            expect(sim.world.getTile(oldX, oldY)?.occupiedBy).toBeNull();
-            expect(sim.world.getTile(grass.x, grass.y)?.occupiedBy).toBe(sim.player);
-        });
-
-        it('can return to the same tile (no self-block)', () => {
-            const grass = findTile(sim, TileType.GRASS);
-            if (!grass) return;
-            sim.cheatMoveOverworld(grass.x, grass.y);
-            // Move away, then return
-            sim.cheatEnterRiver(10, 4); // enters river without vacating the overworld tile
-            expect(sim.cheatMoveOverworld(grass.x, grass.y)).toBe(true);
-        });
+    it('teleports to MUD tile and updates coordinates', () => {
+        expect(sim.cheatMoveOverworld(MUD.x, MUD.y)).toBe(true);
+        expect(sim.player.tileX).toBe(MUD.x);
+        expect(sim.player.tileY).toBe(MUD.y);
     });
 
-    describe('cheatEnterRiver', () => {
-        it('switches mode to river at specified coordinates', () => {
-            sim.cheatEnterRiver(10, 4);
-            expect(sim.mode).toBe('river');
-            expect(sim.riverX).toBe(10);
-            expect(sim.riverY).toBe(4);
-        });
-
-        it('returns false for out-of-bounds river coordinates', () => {
-            expect(sim.cheatEnterRiver(-1, 4)).toBe(false);
-            expect(sim.cheatEnterRiver(10, -1)).toBe(false);
-            expect(sim.cheatEnterRiver(10, sim.world.river!.maxDepth)).toBe(false);
-        });
-
-        it('returns false for sky tiles (y < skyDepth)', () => {
-            expect(sim.cheatEnterRiver(10, 0)).toBe(false);
-            expect(sim.cheatEnterRiver(10, 1)).toBe(false);
-            expect(sim.cheatEnterRiver(10, 2)).toBe(false);
-        });
-
-        it('returns false for river bottom tile', () => {
-            const river = sim.world.river!;
-            const bottomY = river.bottomDepth[10];
-            expect(sim.cheatEnterRiver(10, bottomY)).toBe(false);
-        });
+    it('teleports to a water tile and sets isSwimming=true', () => {
+        expect(sim.cheatMoveOverworld(DEEP.x, DEEP.y)).toBe(true);
+        expect(sim.player.isSwimming).toBe(true);
     });
 
-    describe('cheatExitRiver', () => {
-        it('switches mode to overworld at specified coordinates', () => {
-            sim.cheatEnterRiver(10, 4);
-            const grass = findTile(sim, TileType.GRASS);
-            if (!grass) return;
-            expect(sim.cheatExitRiver(grass.x, grass.y)).toBe(true);
-            expect(sim.mode).toBe('overworld');
-            expect(sim.player.tileX).toBe(grass.x);
-            expect(sim.player.tileY).toBe(grass.y);
-        });
+    it('sets mode to overworld when called from river', () => {
+        sim.cheatEnterRiver(DIVE_X, WATER_Y);
+        sim.cheatMoveOverworld(GRASS.x, GRASS.y);
+        expect(sim.mode).toBe('overworld');
+    });
 
-        it('returns false for blocking tiles', () => {
-            sim.cheatEnterRiver(10, 4);
-            expect(sim.cheatExitRiver(0, 0)).toBe(false);
-            expect(sim.mode).toBe('river');
-        });
+    it('returns false for out-of-bounds coordinates', () => {
+        expect(sim.cheatMoveOverworld(-1, GRASS.y)).toBe(false);
+        expect(sim.cheatMoveOverworld(GRASS.x, -1)).toBe(false);
+        expect(sim.cheatMoveOverworld(WIDTH, GRASS.y)).toBe(false);
+    });
 
-        it('returns false for out-of-bounds coordinates', () => {
-            sim.cheatEnterRiver(10, 4);
-            expect(sim.cheatExitRiver(-1, 5)).toBe(false);
-        });
+    it('returns false for blocking tiles (BORDER and TREE)', () => {
+        expect(sim.cheatMoveOverworld(BORDER.x, BORDER.y)).toBe(false);
+        expect(sim.cheatMoveOverworld(TREE.x, TREE.y)).toBe(false);
+    });
 
-        it('can surface to the same overworld tile the player dived from', () => {
-            const grass = findTile(sim, TileType.GRASS);
-            if (!grass) return;
-            sim.cheatMoveOverworld(grass.x, grass.y);
-            sim.cheatEnterRiver(10, 4);
-            expect(sim.cheatExitRiver(grass.x, grass.y)).toBe(true);
-            expect(sim.player.tileX).toBe(grass.x);
-        });
+    it('vacates old tile and occupies new tile', () => {
+        const { tileX: ox, tileY: oy } = sim.player;
+        sim.cheatMoveOverworld(DIRT.x, DIRT.y);
+        expect(sim.world.getTile(ox, oy)?.occupiedBy).toBeNull();
+        expect(sim.world.getTile(DIRT.x, DIRT.y)?.occupiedBy).toBe(sim.player);
+    });
 
-        it('occupies the destination tile', () => {
-            sim.cheatEnterRiver(10, 4);
-            const grass = findTile(sim, TileType.GRASS);
-            if (!grass) return;
-            sim.cheatExitRiver(grass.x, grass.y);
-            expect(sim.world.getTile(grass.x, grass.y)?.occupiedBy).toBe(sim.player);
-        });
+    it('can return to the current tile (no self-block)', () => {
+        // cheatEnterRiver keeps the overworld tile "occupied" in the current impl
+        sim.cheatEnterRiver(DIVE_X, WATER_Y);
+        expect(sim.cheatMoveOverworld(GRASS.x, GRASS.y)).toBe(true);
+    });
+});
+
+describe('cheatEnterRiver', () => {
+    let sim: GameSimulation;
+    beforeEach(() => { sim = createTestSim(); });
+
+    it('switches to river mode at the specified coordinates', () => {
+        expect(sim.cheatEnterRiver(DIVE_X, WATER_Y)).toBe(true);
+        expect(sim.mode).toBe('river');
+        expect(sim.riverX).toBe(DIVE_X);
+        expect(sim.riverY).toBe(WATER_Y);
+    });
+
+    it('returns false for out-of-bounds river coordinates', () => {
+        expect(sim.cheatEnterRiver(-1, WATER_Y)).toBe(false);
+        expect(sim.cheatEnterRiver(DIVE_X, -1)).toBe(false);
+        expect(sim.cheatEnterRiver(RIVER_LENGTH, WATER_Y)).toBe(false); // x=10 out of bounds
+    });
+
+    it('returns false for SKY tiles (y < skyDepth=3)', () => {
+        expect(sim.cheatEnterRiver(DIVE_X, 0)).toBe(false);
+        expect(sim.cheatEnterRiver(DIVE_X, 1)).toBe(false);
+        expect(sim.cheatEnterRiver(DIVE_X, 2)).toBe(false);
+    });
+
+    it('returns false for RIVER_BOTTOM tiles (y >= BOTTOM_Y)', () => {
+        expect(sim.cheatEnterRiver(DIVE_X, BOTTOM_Y)).toBe(false);
+        expect(sim.cheatEnterRiver(DIVE_X, BOTTOM_Y + 5)).toBe(false);
+    });
+});
+
+describe('cheatExitRiver', () => {
+    let sim: GameSimulation;
+    beforeEach(() => {
+        sim = createTestSim();
+        sim.cheatEnterRiver(DIVE_X, WATER_Y);
+    });
+
+    it('switches to overworld at specified coordinates', () => {
+        expect(sim.cheatExitRiver(GRASS.x, GRASS.y)).toBe(true);
+        expect(sim.mode).toBe('overworld');
+        expect(sim.player.tileX).toBe(GRASS.x);
+        expect(sim.player.tileY).toBe(GRASS.y);
+    });
+
+    it('occupies the destination tile', () => {
+        sim.cheatExitRiver(GRASS.x, GRASS.y);
+        expect(sim.world.getTile(GRASS.x, GRASS.y)?.occupiedBy).toBe(sim.player);
+    });
+
+    it('returns false for blocking tiles — mode stays river', () => {
+        expect(sim.cheatExitRiver(BORDER.x, BORDER.y)).toBe(false);
+        expect(sim.cheatExitRiver(TREE.x, TREE.y)).toBe(false);
+        expect(sim.mode).toBe('river');
+    });
+
+    it('returns false for out-of-bounds coordinates', () => {
+        expect(sim.cheatExitRiver(-1, GRASS.y)).toBe(false);
+    });
+
+    it('can surface to the overworld tile the player was on before diving', () => {
+        const sim2 = createTestSim(); // spawns at GRASS
+        sim2.cheatEnterRiver(DIVE_X, WATER_Y);
+        expect(sim2.cheatExitRiver(GRASS.x, GRASS.y)).toBe(true);
+        expect(sim2.player.tileX).toBe(GRASS.x);
     });
 });
