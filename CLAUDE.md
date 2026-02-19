@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Task Tracking
+
+This project uses `br` (beads_rust) for issue/task tracking. Before working on any task, read the agent guide at `br-guide.md`
+
 ## Project Overview
 
 Otter Life is an interactive browser-based 2D game built with Phaser 3 and TypeScript using Webpack. Players control an otter exploring a procedurally-generated 500×500 tile overworld with a winding river, and can dive into a side-scrolling river scene.
@@ -31,7 +35,7 @@ Tests live alongside source files (`*.test.ts`).  The simulation layer has no Ph
 
 **Static test world fixture** (`src/game/testing/fixtures.ts`):
 
-All simulation tests use `createTestSim()` rather than `new GameSimulation()` to avoid world-generation randomness and slow procedural startup.  The factory builds a 20×20 world with `Object.create` (same pattern as `Serialization.deserialize`) — no random seeds, every tile at a known coordinate.
+All simulation tests use `createTestSim()` rather than `new GameSimulation()` to avoid world-generation randomness and slow procedural startup.  The factory builds a 20×20 — no random seeds, every tile at a known coordinate.
 
 ```typescript
 import { createTestSim, GRASS, DEEP, TREE, DIVE_X, WATER_Y } from '../testing/fixtures';
@@ -43,28 +47,28 @@ sim.tryEnterRiver(); // deterministically lands at river column DIVE_X=4
 
 Named overworld constants and what they contain:
 
-| Constant | Tile | Position | Notes |
-|---|---|---|---|
-| `GRASS` / `SPAWN` | GRASS | (5, 5) | Player start; all 4 neighbours walkable |
-| `DIRT` | DIRT | (5, 4) | North of spawn |
-| `MUD` | MUD | (5, 7) | Has 2 MUD resources pre-set |
-| `SHORELINE` | SHORELINE | (9, 8) | River cross-section |
-| `SHALLOW` | RIVER_SHALLOW | (11, 8) | |
-| `DEEP` | RIVER_DEEP | (13, 8) | Dive point → river column `DIVE_X=4` |
-| `TREE` | TREE (blocking) | (5, 14) | (4,14) to the west is GRASS |
-| `BORDER` | BOULDER (blocking) | (0, 0) | Always blocking |
+| Constant          | Tile               | Position | Notes |
+| ----------------- | ------------------ | -------- | ----- |
+| `GRASS` / `SPAWN` | GRASS              | (5, 5)   | Player start; all 4 neighbours walkable |
+| `DIRT`            | DIRT               | (5, 4)   | North of spawn |
+| `MUD`             | MUD                | (5, 7)   | Has 2 MUD resources pre-set |
+| `SHORELINE`       | SHORELINE          | (9, 8)   | River cross-section |
+| `SHALLOW`         | RIVER_SHALLOW      | (11, 8)  | |
+| `DEEP`            | RIVER_DEEP         | (13, 8)  | Dive point → river column `DIVE_X=4` |
+| `TREE`            | TREE (blocking)    | (5, 14)  | (4,14) to the west is GRASS |
+| `BORDER`          | BOULDER (blocking) | (0, 0)   | Always blocking |
 
 Named river constants (10 cols × 32 rows, uniform `bottomDepth=20`):
 
-| Constant | Value | Meaning |
-|---|---|---|
-| `SKY_DEPTH` | 3 | Rows 0–2 are SKY (not enterable) |
-| `DIVE_X` | 4 | River column when diving from `DEEP` |
-| `WATER_Y` | 6 | Safe WATER row; not in exit zone |
-| `NEAR_SKY_Y` | 4 | One step above the exit zone; for sky-block tests |
-| `EXIT_Y` | 3 | Valid `tryExitRiver` row |
-| `BOTTOM_Y` | 20 | First RIVER_BOTTOM row |
-| `RIVER_LENGTH` | 10 | Total river columns |
+| Constant       | Value | Meaning |
+| -------------- | ----- | ---|
+| `SKY_DEPTH`    | 3     | Rows 0–2 are SKY (not enterable) |
+| `DIVE_X`       | 4     | River column when diving from `DEEP` |
+| `WATER_Y`      | 6     | Safe WATER row; not in exit zone |
+| `NEAR_SKY_Y`   | 4     | One step above the exit zone; for sky-block tests |
+| `EXIT_Y`       | 3     | Valid `tryExitRiver` row |
+| `BOTTOM_Y`     | 20    | First RIVER_BOTTOM row |
+| `RIVER_LENGTH` | 10    | Total river columns |
 
 **Rules for writing new simulation tests:**
 - Always use `createTestSim()` — never `new GameSimulation()` in gameplay tests
@@ -215,16 +219,16 @@ The RiverScene has varying depth at each x position:
 - Each tile: 32×32px filled rectangle with 0.1 alpha black border
 - Color lookup by `TileType`:
 
-| Tile | Color |
-|------|-------|
-| GRASS | 0x4A7C2C (green) |
-| DIRT | 0x8B7355 (brown) |
-| MUD | 0x6B5D4F (dark brown) |
-| SHORELINE | 0xC2B280 (sandy beige) |
-| RIVER_SHALLOW | 0x6BAED6 (light blue) |
-| RIVER_DEEP | 0x2E75B6 (medium blue) |
-| TREE | 0x2D5A1B (dark green) |
-| BOULDER/CLIFF/ROCK | grey tones |
+| Tile               | Color                  |
+| ------------------ | ---------------------- |
+| GRASS              | 0x4A7C2C (green)       |
+| DIRT               | 0x8B7355 (brown)       |
+| MUD                | 0x6B5D4F (dark brown)  |
+| SHORELINE          | 0xC2B280 (sandy beige) |
+| RIVER_SHALLOW      | 0x6BAED6 (light blue)  |
+| RIVER_DEEP         | 0x2E75B6 (medium blue) |
+| TREE               | 0x2D5A1B (dark green)  |
+| BOULDER/CLIFF/ROCK | grey tones             |
 
 **RiverScene Rendering** (inline in `RiverScene.ts`):
 - Same viewport-culling pattern
@@ -237,15 +241,15 @@ The RiverScene has varying depth at each x position:
 
 ### Key Constants (`src/game/constants.ts`)
 
-| Constant | Value | Meaning |
-|----------|-------|---------|
-| `SCREEN_WIDTH` | 800 | Viewport width (px) |
-| `SCREEN_HEIGHT` | 800 | Viewport height (px) |
-| `TILE_SIZE` | 32 | Pixels per tile |
-| `TILES_HORIZONTAL` | 25 | Visible tile columns |
-| `TILES_VERTICAL` | 25 | Visible tile rows |
-| `WORLD_WIDTH` | 500 | World width (tiles) |
-| `WORLD_HEIGHT` | 500 | World height (tiles) |
+| Constant           | Value   | Meaning              |
+| ------------------ | ------- | ---------            |
+| `SCREEN_WIDTH`     | 800     | Viewport width (px)  |
+| `SCREEN_HEIGHT`    | 800     | Viewport height (px) |
+| `TILE_SIZE`        | 32      | Pixels per tile      |
+| `TILES_HORIZONTAL` | 25      | Visible tile columns |
+| `TILES_VERTICAL`   | 25      | Visible tile rows    |
+| `WORLD_WIDTH`      | 500     | World width (tiles)  |
+| `WORLD_HEIGHT`     | 500     | World height (tiles) |
 
 ### Data Structures
 
