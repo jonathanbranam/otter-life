@@ -3,6 +3,25 @@ import { Tile, ResourceType } from './Tile';
 import { TileType } from './TileType';
 import { RiverGenerator } from './RiverGenerator';
 
+/**
+ * Procedural world generator for the overworld map.
+ *
+ * River path generation (generateRiver):
+ * - Builds a continuous north→south path from y=height-3 to y=2
+ * - Starts at 15% from the left edge; meanders with small per-step drift and
+ *   occasional larger turns (15% chance); linear interpolation fills gaps
+ * - Each path point carries a random width of 8–16 tiles
+ * - The resulting riverPath array is the canonical overworld↔river index mapping
+ *
+ * Tile assignment by distance to nearest riverPath point:
+ * - ≤ 30% width  → RIVER_DEEP     (diveable into RiverScene)
+ * - ≤ 70% width  → RIVER_SHALLOW  (swimmable)
+ * - ≤ width+1    → SHORELINE      (20% shell resource chance)
+ * - ≤ width+2.5  → MUD            (30% mud resource chance)
+ * - ≤ width+4    → DIRT
+ * - Otherwise    → GRASS; 2% of GRASS/DIRT tiles become TREE (blocking, twigs)
+ * - 2-tile border → random mix of BOULDER / CLIFF / ROCK (all blocking)
+ */
 export class WorldGenerator {
     static generate(width: number, height: number): World {
         const tiles = WorldGenerator.initTiles(width, height);

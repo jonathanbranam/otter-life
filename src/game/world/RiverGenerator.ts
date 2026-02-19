@@ -1,5 +1,18 @@
 import { River, RiverTile, RiverTileType } from './River';
 
+/**
+ * Generates the side-scrolling river world (riverLength columns × maxDepth rows).
+ *
+ * Tile layout per column:
+ * - Rows 0..SKY_DEPTH-1 (top 3)  → SKY (never enterable)
+ * - Row bottomDepth[x]..maxDepth-1 → RIVER_BOTTOM
+ * - All rows between sky and bottom → WATER
+ *
+ * Depth profile (generateDepthProfile):
+ * - Entry/exit zones (≈3.3% of length at each end) ease bottomDepth in/out
+ *   from a shallow value using quadratic easing
+ * - Middle section varies randomly with a bias toward small incremental changes
+ */
 const SKY_DEPTH = 3;
 // Minimum: sky rows + 4 water rows + 1 bottom row
 const MIN_MAX_DEPTH = SKY_DEPTH + 5;
