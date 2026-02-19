@@ -129,29 +129,26 @@ export function deserialize(json: string): GameSimulation {
         throw new Error(`Unsupported save version: ${data.version}`);
     }
 
-    // Reconstruct World without running generation
-    const world = Object.create(World.prototype) as World;
-    world.width = data.world.width;
-    world.height = data.world.height;
-    world.riverPath = data.world.riverPath;
-    world.riverLength = data.world.riverPath.length;
-
     // Reconstruct tiles
-    world.tiles = [];
-    for (let y = 0; y < world.height; y++) {
-        world.tiles[y] = [];
+    const tiles: Tile[][] = [];
+    for (let y = 0; y < data.world.height; y++) {
+        tiles[y] = [];
         const rowStr = data.world.tileRows[y];
-        for (let x = 0; x < world.width; x++) {
+        for (let x = 0; x < data.world.width; x++) {
             const tileType = CHAR_TO_TILE_TYPE[rowStr[x]];
-            world.tiles[y][x] = new Tile(x, y, tileType);
+            tiles[y][x] = new Tile(x, y, tileType);
         }
     }
 
     // Restore resources
     for (const res of data.world.resources) {
-        const tile = world.tiles[res.y][res.x];
-        tile.setResource(res.type as ResourceType, res.count);
+        tiles[res.y][res.x].setResource(res.type as ResourceType, res.count);
     }
+
+    // Reconstruct World without running generation
+    const world = new World(tiles);
+    world.riverPath = data.world.riverPath;
+    world.riverLength = data.world.riverPath.length;
 
     // Reconstruct River without running generation
     const rd = data.world.river;

@@ -1,4 +1,5 @@
-import { World } from '../world/World';
+import { WorldGenerator } from '../world/WorldGenerator';
+import type { World } from '../world/World';
 import { TileType } from '../world/TileType';
 import { PlayerState, Direction } from './PlayerState';
 
@@ -24,7 +25,7 @@ export class GameSimulation {
     entryRiverIndex: number = 0;
 
     constructor(worldWidth: number, worldHeight: number) {
-        this.world = new World(worldWidth, worldHeight);
+        this.world = WorldGenerator.generate(worldWidth, worldHeight);
         // Player starts at 0,0; findSpawnPosition() should be called to place properly
         this.player = new PlayerState(0, 0);
     }

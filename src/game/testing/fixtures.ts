@@ -116,16 +116,12 @@ export function createTestSim(): GameSimulation {
 // ── Internal helpers ──────────────────────────────────────────────────────────
 
 function buildWorld(): World {
-    const world = Object.create(World.prototype) as World;
-    world.width  = WIDTH;
-    world.height = HEIGHT;
-
     // Fill with GRASS
-    world.tiles = [];
+    const tiles: Tile[][] = [];
     for (let y = 0; y < HEIGHT; y++) {
-        world.tiles[y] = [];
+        tiles[y] = [];
         for (let x = 0; x < WIDTH; x++) {
-            world.tiles[y][x] = new Tile(x, y, TileType.GRASS);
+            tiles[y][x] = new Tile(x, y, TileType.GRASS);
         }
     }
 
@@ -133,32 +129,34 @@ function buildWorld(): World {
     for (let y = 0; y < HEIGHT; y++) {
         for (let x = 0; x < WIDTH; x++) {
             if (x < 2 || x >= WIDTH - 2 || y < 2 || y >= HEIGHT - 2) {
-                world.tiles[y][x].type = TileType.BOULDER;
+                tiles[y][x].type = TileType.BOULDER;
             }
         }
     }
 
     // Dirt patch (y=4)
-    set(world, 5, 4, TileType.DIRT);
-    set(world, 6, 4, TileType.DIRT);
+    tiles[4][5].type = TileType.DIRT;
+    tiles[4][6].type = TileType.DIRT;
 
     // MUD tile with resource
-    set(world, MUD.x, MUD.y, TileType.MUD);
-    world.tiles[MUD.y][MUD.x].setResource(ResourceType.MUD, 2);
+    tiles[MUD.y][MUD.x].type = TileType.MUD;
+    tiles[MUD.y][MUD.x].setResource(ResourceType.MUD, 2);
 
     // River cross-section at y=8
-    set(world,  7, 8, TileType.MUD);
-    set(world,  8, 8, TileType.MUD);
-    set(world,  9, 8, TileType.SHORELINE);   // SHORELINE
-    set(world, 10, 8, TileType.SHORELINE);
-    set(world, 11, 8, TileType.RIVER_SHALLOW);
-    set(world, 12, 8, TileType.RIVER_SHALLOW);
-    set(world, 13, 8, TileType.RIVER_DEEP);  // DEEP — dive point
-    set(world, 14, 8, TileType.RIVER_DEEP);
+    tiles[8][ 7].type = TileType.MUD;
+    tiles[8][ 8].type = TileType.MUD;
+    tiles[8][ 9].type = TileType.SHORELINE;
+    tiles[8][10].type = TileType.SHORELINE;
+    tiles[8][11].type = TileType.RIVER_SHALLOW;
+    tiles[8][12].type = TileType.RIVER_SHALLOW;
+    tiles[8][13].type = TileType.RIVER_DEEP;
+    tiles[8][14].type = TileType.RIVER_DEEP;
 
     // Blocking trees
-    set(world, 5, 14, TileType.TREE);
-    set(world, 6, 14, TileType.TREE);
+    tiles[14][5].type = TileType.TREE;
+    tiles[14][6].type = TileType.TREE;
+
+    const world = new World(tiles);
 
     // River path — 10 points running north along x=13.
     // index i maps to overworld y = 12 - i, so index 4 → (13, 8) = DEEP.
@@ -199,6 +197,3 @@ function buildRiver(): River {
     return river;
 }
 
-function set(world: World, x: number, y: number, type: TileType): void {
-    world.tiles[y][x].type = type;
-}
