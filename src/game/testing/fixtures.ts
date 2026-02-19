@@ -172,28 +172,22 @@ function buildWorld(): World {
 }
 
 function buildRiver(): River {
-    const river = Object.create(River.prototype) as River;
-    river.length     = RIVER_LENGTH;
-    river.maxDepth   = 32;
-    river.skyDepth   = SKY_DEPTH;
-    // Uniform bottom depth: rows 3-19 are WATER, rows 20-31 are RIVER_BOTTOM
-    river.bottomDepth = new Array(RIVER_LENGTH).fill(BOTTOM_Y);
-
-    river.tiles = [];
-    for (let y = 0; y < river.maxDepth; y++) {
-        river.tiles[y] = [];
-        for (let x = 0; x < river.length; x++) {
+    const bottomDepth = new Array(RIVER_LENGTH).fill(BOTTOM_Y);
+    const tiles: RiverTile[][] = [];
+    for (let y = 0; y < 32; y++) {
+        tiles[y] = [];
+        for (let x = 0; x < RIVER_LENGTH; x++) {
             let type: RiverTileType;
-            if (y < river.skyDepth) {
+            if (y < SKY_DEPTH) {
                 type = RiverTileType.SKY;
-            } else if (y >= river.bottomDepth[x]) {
+            } else if (y >= bottomDepth[x]) {
                 type = RiverTileType.RIVER_BOTTOM;
             } else {
                 type = RiverTileType.WATER;
             }
-            river.tiles[y][x] = new RiverTile(x, y, type);
+            tiles[y][x] = new RiverTile(x, y, type);
         }
     }
-    return river;
+    return new River(tiles, SKY_DEPTH, bottomDepth);
 }
 

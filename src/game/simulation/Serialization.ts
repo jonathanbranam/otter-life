@@ -152,29 +152,22 @@ export function deserialize(json: string): GameSimulation {
 
     // Reconstruct River without running generation
     const rd = data.world.river;
-    const river = Object.create(River.prototype) as River;
-    river.length = rd.length;
-    river.maxDepth = rd.maxDepth;
-    river.skyDepth = rd.skyDepth;
-    river.bottomDepth = rd.bottomDepth;
-
-    // Rebuild river tiles from bottomDepth
-    river.tiles = [];
-    for (let y = 0; y < river.maxDepth; y++) {
-        river.tiles[y] = [];
-        for (let x = 0; x < river.length; x++) {
-            const riverBottom = river.bottomDepth[x];
+    const riverTiles: RiverTile[][] = [];
+    for (let y = 0; y < rd.maxDepth; y++) {
+        riverTiles[y] = [];
+        for (let x = 0; x < rd.length; x++) {
             let tileType: RiverTileType;
-            if (y < river.skyDepth) {
+            if (y < rd.skyDepth) {
                 tileType = RiverTileType.SKY;
-            } else if (y >= riverBottom) {
+            } else if (y >= rd.bottomDepth[x]) {
                 tileType = RiverTileType.RIVER_BOTTOM;
             } else {
                 tileType = RiverTileType.WATER;
             }
-            river.tiles[y][x] = new RiverTile(x, y, tileType);
+            riverTiles[y][x] = new RiverTile(x, y, tileType);
         }
     }
+    const river = new River(riverTiles, rd.skyDepth, rd.bottomDepth);
 
     world.river = river;
 

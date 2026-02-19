@@ -1,7 +1,7 @@
 import { World } from './World';
 import { Tile, ResourceType } from './Tile';
 import { TileType } from './TileType';
-import { River } from './River';
+import { RiverGenerator } from './RiverGenerator';
 
 export class WorldGenerator {
     static generate(width: number, height: number): World {
@@ -9,7 +9,7 @@ export class WorldGenerator {
         WorldGenerator.generateEdges(tiles, width, height);
         const riverPath = WorldGenerator.generateRiver(tiles, width, height);
         const riverLength = riverPath.length;
-        const river = new River(riverLength);
+        const river = RiverGenerator.generate(riverLength);
         console.log(`River generated with length: ${riverLength} tiles`);
         WorldGenerator.generateTrees(tiles, width, height);
         WorldGenerator.generateResources(tiles, width, height);
